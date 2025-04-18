@@ -16,9 +16,19 @@ const formats = ["Unidad", "Ancho x Largo", "Lado + Lado x Precio", "Unidad x La
 const ProductTypesPage = () => {
 // const [data, setData] = useState(initialData);
   const [data, setData] = useState([]); // Estado para almacenar los datos de la API. // Se cambia initialData por un estado vacío para cargar datos de la API
-  const [isModalOpen, setIsModalOpen] = useState(false); // Estado para abrir/cerrar el modal
-  const [editingItem, setEditingItem] = useState(null); // Elemento que se está editando
+  const [filteredData, setFilteredData] = useState([]);     // Estado para almacenar los datos filtrados
+  const [isModalOpen, setIsModalOpen] = useState(false);    // Estado para abrir/cerrar el modal
+  const [editingItem, setEditingItem] = useState(null);     // Elemento que se está editando
   const [form] = Form.useForm();
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorModalMessage, setErrorModalMessage] = useState('');
+
+
+  // Estado para almacenar los filtros
+  const [filters, setFilters] = useState({
+    title: "",
+    format: "",
+  });
 
   // Cargar datos de la API al montar el componente
   useEffect(() => {
@@ -26,12 +36,34 @@ const ProductTypesPage = () => {
     axios.get(`${API_URL}/product-types`)
       .then((response) => {
         setData(response.data);     // Almacenar los tipos de productos obtenidos de la API
+        setFilteredData(response.data); // Establecer los datos filtrados con los mismos datos inicialmente
       })
       .catch((error) => {
         message.error("Error al cargar los tipos de productos.");
         console.error(error);
       });
   }, []);       // El array vacío asegura que esto solo se ejecute una vez cuando se monta el componente
+
+  const updateDataStates = (newData) => {
+    setData(newData);
+    setFilteredData(applyCurrentFilters(newData));
+  };
+
+  const applyCurrentFilters = (items) => {
+    let filtered = [...items];
+    if (filters.title) {
+      filtered = filtered.filter(product =>
+        product.title.toLowerCase().includes(filters.title.toLowerCase())
+      );
+    }
+    if (filters.format) {
+      filtered = filtered.filter(product =>
+        product.format.toLowerCase().includes(filters.format.toLowerCase())
+      );
+    }
+    return filtered;
+  };  
+  
 
   // Función para abrir el modal de edición
   const handleOpenModal = (record = null) => {
@@ -63,7 +95,10 @@ const ProductTypesPage = () => {
         .then((response) => {
         console.log("API responseR:", response);
           if (response.status === 200) {
-            setData(data.filter(item => item._id !== id));
+
+            const updatedData = data.filter(item => item._id !== id);
+            updateDataStates(updatedData);
+
             message.success("Tipo de producto eliminado.");
           } else {
             message.error("Error al eliminar el tipo de producto.");
@@ -116,6 +151,7 @@ const ProductTypesPage = () => {
 
   // Función para manejar la creación/actualización de productos
   const handleSubmit = () => {
+    console.log("Intentando editar tipo de producto")
     form.validateFields().then(values => {
       const token = localStorage.getItem("token");      // Obtén el token de autenticación
       if (!token) {
@@ -131,21 +167,39 @@ const ProductTypesPage = () => {
         headers: { Authorization: `Bearer ${token}` },      // Incluye el token en los headers
       })
         .then((response) => {
+          let updatedData;
+
           if (editingItem) {
-            setData(data.map(item => (item._id === editingItem._id ? { ...editingItem, ...values } : item)));
+            updatedData = data.map(item =>
+              item._id === editingItem._id ? { ...editingItem, ...values } : item
+            );
             message.success("Tipo de producto actualizado.");
           } else {
-            setData([...data, response.data.product]);
+            updatedData = [...data, response.data.product];
             message.success("Tipo de producto agregado.");
           }
+
+          updateDataStates(updatedData); // ✅ Aplica cambios + filtros actuales
           setIsModalOpen(false);
         })
         .catch((error) => {
-          message.error("Error al guardar el tipo de producto.");
-          console.error(error);
-        });
-    });
-  };
+            console.log("Error recibido:", error);
+
+            if (error.response && error.response.status === 403) {
+              console.log("Mostrando modal de error personalizado...");
+              setIsModalOpen(false); // Cierra el modal principal
+
+              // Establece el mensaje del modal de error y lo muestra
+              setErrorModalMessage('No tienes permiso para editar este tipo de producto. Asegúrate de tener los permisos adecuados.');
+              setErrorModalVisible(true);
+            } else {
+              message.error("Error al guardar el tipo de producto.");
+            }
+
+             console.error(error);
+          });
+      });
+    };
 
   // Función para activar/desactivar el estado de un producto
   const toggleActiveStatus = (id, currentStatus) => {
@@ -161,29 +215,86 @@ const ProductTypesPage = () => {
         item._id === id ? { ...item, active: newStatus } : item
       ));
 
+    setFilteredData(filteredData.map(item => item._id === id ? { ...item, active: newStatus } : item));
+
+
     // Enviar la solicitud PUT para actualizar el estado "Activo" en la base de datos
     axios.put(`${API_URL}/product-types/${id}`, 
         { active: newStatus },  // Envía el nuevo valor de "active"
         { headers: { Authorization: `Bearer ${token}` } }
     )
-    .then((response) => {
+    .then(() => {
         message.success("Estado actualizado correctamente.");
     })
     .catch((error) => {
-        console.error("Error al actualizar el estado:", error);
-        message.error("Error al actualizar el estado.");
-        
         // Si ocurre un error, revertir el cambio localmente
         setData(data.map(item => 
         item._id === id ? { ...item, active: currentStatus } : item
         ));
+        setFilteredData(filteredData.map(item => item._id === id ? { ...item, active: currentStatus } : item));
+
+        console.error("Error al actualizar el estado:", error);
+        message.error("Error al actualizar el estado.");
     });
+  };
+
+  // Función para manejar el cambio de filtros
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+
+    // Filtrar los productos según el título y el formato
+    let filteredProducts = [...data];
+
+    if (value) {
+      filteredProducts = filteredProducts.filter(product =>
+        product[key].toLowerCase().includes(value.toLowerCase())
+      );
+    }
+
+    setFilteredData(filteredProducts);
+  };
+
+  // Función para manejar la ordenación de la tabla
+  const handleTableChange = (pagination, filters, sorter) => {
+    let sortedData = [...filteredData];
+    if (sorter.order === 'ascend') {
+      sortedData = sortedData.sort((a, b) => a[sorter.columnKey] > b[sorter.columnKey] ? 1 : -1);
+    } else if (sorter.order === 'descend') {
+      sortedData = sortedData.sort((a, b) => a[sorter.columnKey] < b[sorter.columnKey] ? 1 : -1);
+    }
+    setFilteredData(sortedData);
   };
 
   // Definición de las columnas para la tabla
   const columns = [
-    { title: "Título", dataIndex: "title", key: "title" },
-    { title: "Formato", dataIndex: "format", key: "format" },
+    { title: "Título", dataIndex: "title", key: "title",
+      sorter: true, // Permite la ordenación por esta columna
+      ...filters.title ? {
+        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+          <div>
+            <Input
+              value={selectedKeys[0]}
+              onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+              onPressEnter={() => confirm()}
+            />
+            <Button onClick={() => clearFilters()}>Limpiar</Button>
+          </div>
+        ),
+        onFilter: (value, record) => record.title.toLowerCase().includes(value.toLowerCase()),
+      } : {},
+    },
+
+    { title: "Formato", dataIndex: "format", key: "format", sorter: true, 
+      filters: formats.map(format => ({
+        text: format,
+        value: format,
+      })),
+      onFilter: (value, record) => record.format === value,
+    },
+
     {
       title: "Activo",
       dataIndex: "active",
@@ -207,12 +318,21 @@ const ProductTypesPage = () => {
   return (
     <div style={{ padding: 20 }}>
       <h2>Tipos de Productos</h2>
+      <div style={{ marginBottom: 20 }}></div>
+      <Input
+        placeholder="Buscar por Título"
+        value={filters.title}
+        onChange={e => handleFilterChange("title", e.target.value)} // Cambia el filtro de título
+        style={{ marginBottom: 20, width: 300, marginRight: 20 }}   // Añadir margen derecho para separarlo del botón
+      />
+
       <Button type="primary" onClick={() => handleOpenModal()}>Agregar Tipo de Producto</Button>
       <Table
         columns={columns}
-        dataSource={data}
+        dataSource={filteredData} // Usa los datos filtrados
         rowKey="_id"
         pagination={{ pageSize: 5 }}
+        onChange={handleTableChange} // Agregado para manejar la ordenación
         style={{ marginTop: 20 }}
       />
 
@@ -246,6 +366,17 @@ const ProductTypesPage = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        title="Acceso Denegado"
+        open={errorModalVisible}
+        onOk={() => setErrorModalVisible(false)}
+        onCancel={() => setErrorModalVisible(false)}
+        okText="Entendido"
+      >
+        <p>{errorModalMessage}</p>
+      </Modal>
+
     </div>
   );
 }

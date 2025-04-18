@@ -34,6 +34,8 @@ const ProductForm = ({ product, onSave }) => {
         productType: product.productType ? product.productType._id : undefined,
         isActive: product.isActive,
       });
+    } else {
+      form.resetFields();  // Si no hay producto (modo crear), resetea los campos
     }
   }, [product, form]);
 

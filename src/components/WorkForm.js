@@ -199,7 +199,7 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
           </Form.Item>
         </Col>
       </Row>
-
+  {/*
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -220,7 +220,7 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
           </Form.Item>
         </Col>
       </Row>
-
+*/}
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -271,22 +271,27 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
         </>
       )}
 
-      <Form.Item>
-        <Button type="primary" htmlType="submit">
-          {editingItem ? 'Editar Trabajo' : 'Agregar Trabajo'}
-        </Button>
-      </Form.Item>
-
-      {editingItem && (
-        <Form.Item>
-          <Button
-            onClick={() => form.resetFields()}
-            style={{ marginLeft: 8 }}
-          >
-            Cancelar
-          </Button>
-        </Form.Item>
-      )}
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              {editingItem ? 'Guardar' : 'Guardar'}
+            </Button>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          {editingItem && (
+            <Form.Item>
+              <Button
+                onClick={() => form.resetFields()}
+                style={{ marginLeft: 8 }}
+              >
+                Cancelar
+              </Button>
+            </Form.Item>
+          )}
+        </Col>
+      </Row>
     </Form>
   );
 };

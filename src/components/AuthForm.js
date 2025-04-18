@@ -1,7 +1,7 @@
 // src/components/AuthForm.js
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // Importa useNavigate
+import { useNavigate, Link } from 'react-router-dom'; // Importa useNavigate
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -27,10 +27,12 @@ const AuthForm = ({ onLoginSuccess }) => {
 
       // Si el login es exitoso, se guarda el token en el localStorage o contexto
       // const token = response.data.token;
-      const { token, role } = response.data;  // Suponiendo que el backend te devuelve el rol también
+      // const { token, role } = response.data;  // Suponiendo que el backend te devuelve el rol también
+      const { token, user } = response.data;
+      const role = user.role;
 
-      console.log('Token:', token);
-      console.log('Role:', role);
+      console.log('TokenT:', token);
+      console.log('RoleR:', role);
 
       if (token && role) {
         localStorage.setItem('token', token);   // Guardar el token
@@ -57,7 +59,7 @@ const AuthForm = ({ onLoginSuccess }) => {
 
   return (
     <div className="auth-form">
-      <h2>Iniciar Sesión</h2>
+      <h2>Iniciar SesiónP</h2>
       <form onSubmit={handleSubmit}>
         <div>
           <input
@@ -80,6 +82,14 @@ const AuthForm = ({ onLoginSuccess }) => {
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Cargando...' : 'Iniciar Sesión'}
         </button>
+
+        {/* ✅ Enlace para recuperar contraseña */}
+        <div style={{ marginTop: '10px', textAlign: 'right' }}>
+          <Link to="/forgot-password" style={{ fontSize: '14px', color: '#1976D2' }}>
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
         {message && <p>{message}</p>}
       </form>
     </div>

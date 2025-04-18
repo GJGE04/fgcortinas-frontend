@@ -17,7 +17,7 @@ const AppFooter = () => {
         {/* Información de la empresa */}
         <div style={{ flex: "1", padding: "0 10px", minWidth: "200px" }}>
           <h3 style={{ color: "#D32F2F", fontSize: "16px" }}>FG Cortinas</h3>
-          <p style={{ fontSize: "12px" }}>Venta e instalación de cortinas a medida.</p>
+          <p style={{ fontSize: "12px" }}>Instalación, venta y reparación de cortinas a medida</p>
           <p style={{ fontSize: "12px" }}>Teléfonos:</p> 
           <p style={{ fontSize: "12px" }}></p>
           <p>

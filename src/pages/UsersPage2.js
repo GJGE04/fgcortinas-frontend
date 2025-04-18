@@ -15,6 +15,10 @@ const UsersPage2 = () => {
   const [editingUser, setEditingUser] = useState(null); // Estado para el usuario que estamos editando
   const [form] = Form.useForm(); // Formulario de Ant Design
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ username: "", role: "" });
+  const [sortedInfo, setSortedInfo] = useState({});
+
+
 
   // Obtener el token almacenado en el localStorage
   const token = localStorage.getItem('token');
@@ -99,6 +103,17 @@ const UsersPage2 = () => {
       console.error("Error al eliminar el usuario:", error);
       message.error('Error al eliminar el usuario');
     }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const applyFilters = (users) => {
+    return users.filter((user) =>
+      (!filters.username || user.username.toLowerCase().includes(filters.username.toLowerCase())) &&
+      (!filters.role || user.role === filters.role)
+    );
   };
 
 
@@ -211,16 +226,22 @@ const UsersPage2 = () => {
       title: 'Username',
       dataIndex: 'username', // Asegúrate de que la API te devuelve 'nombre'
       key: 'username',
+      sorter: (a, b) => a.username.localeCompare(b.username),
+      sortOrder: sortedInfo.columnKey === 'username' && sortedInfo.order,
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
+      sorter: (a, b) => a.email.localeCompare(b.email),
+      sortOrder: sortedInfo.columnKey === 'email' && sortedInfo.order,
     },
     {
       title: 'Rol',
       dataIndex: 'role',
       key: 'role', // Asegúrate de que la API te devuelve 'role'
+      sorter: (a, b) => a.role.localeCompare(b.email),
+      sortOrder: sortedInfo.columnKey === 'role' && sortedInfo.order,
     },
     {
       title: 'Activo',
@@ -257,9 +278,36 @@ const UsersPage2 = () => {
     },
   ];
 
+  const handleTableChange = (pagination, filters, sorter) => {
+    setSortedInfo(sorter);
+  };  
+
   return (
     <div>
       <h1>Lista de Usuarios</h1>
+
+      {/* Filtros */}
+      <div style={{ marginBottom: 20, display: 'flex', gap: 10 }}>
+        <Input
+          placeholder="Buscar por nombre"
+          value={filters.username}
+          onChange={(e) => handleFilterChange("username", e.target.value)}
+          style={{ width: 200 }}
+        />
+        <Select
+          value={filters.role}
+          onChange={(value) => handleFilterChange("role", value)}
+          style={{ width: 200 }}
+          placeholder="Filtrar por rol"
+          allowClear
+        >
+          {availableRoles.map(role => (
+            <Option key={role} value={role}>{role}</Option>
+          ))}
+        </Select>
+      </div>
+
+
       <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} style={{ marginBottom: 16 }}>
         Crear Usuario
       </Button>
@@ -268,9 +316,10 @@ const UsersPage2 = () => {
       ) : (
         <Table
           columns={columns}
-          dataSource={usuarios}
+          dataSource={applyFilters(usuarios)}
           rowKey="_id"
           pagination={{ pageSize: 5 }}
+          onChange={handleTableChange}
         />
       )}
 

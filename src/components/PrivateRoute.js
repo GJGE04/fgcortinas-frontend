@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { isAuthenticated } from '../services/authService'; // Asegúrate de que tienes la función para verificar la autenticación
+import { isAuthenticated, getUserRole } from '../services/authService'; // Asegúrate de que tienes la función para verificar la autenticación
 
 const PrivateRoute = ({ children, allowedRoles }) => {
   const [loading, setLoading] = useState(true);
@@ -8,16 +8,16 @@ const PrivateRoute = ({ children, allowedRoles }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuth = await isAuthenticated();  // Verifica si el usuario está autenticado
+      const isAuth = await isAuthenticated();             // Verifica si el token es válido
       if (isAuth) {
-        const userRole = localStorage.getItem('role');  // Obtén el rol desde localStorage
+        const userRole = getUserRole();                   // Obtén el rol desde localStorage
         if (allowedRoles.includes(userRole)) {
-          setIsAuthorized(true);  // El usuario tiene el rol adecuado
+          setIsAuthorized(true);                          // El usuario tiene el rol adecuado
         } else {
-          setIsAuthorized(false);  // El usuario no tiene el rol adecuado
+          setIsAuthorized(false);                         // El usuario no tiene el rol adecuado
         }
       } else {
-        setIsAuthorized(false);  // No está autenticado
+        setIsAuthorized(false);                           // No está autenticado
       }
       setLoading(false);
     };

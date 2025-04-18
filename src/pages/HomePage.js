@@ -1,15 +1,16 @@
 // frontend/src/pages/Home.js
 
 // Ejemplo para HomePage.js
-import React, { useEffect, useState } from 'react';
+// import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+// import axios from 'axios';
 
 function HomePage() {
 
-  const [isSuperadminExists, setIsSuperadminExists] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // const [isSuperadminExists, setIsSuperadminExists] = useState(false);
+  // const [loading, setLoading] = useState(true);
 
+  /*
   // Simulamos la verificación de la existencia de un Superadmin
   useEffect(() => {
     const checkSuperadmin = async () => {
@@ -31,6 +32,7 @@ function HomePage() {
 
     checkSuperadmin();
   }, []);
+  */
 
   return (
     <div style={styles.container}>
@@ -47,6 +49,7 @@ function HomePage() {
         </Link>
 
         {/* Condicional para mostrar el enlace de registrar Superadmin solo si no existe */}
+        {/*
         {!isSuperadminExists && (
           <>
             <span style={styles.separator}>|</span>
@@ -55,8 +58,9 @@ function HomePage() {
             </Link>
           </>
         )}
-
-      {loading && <p>Cargando...</p>}
+          */}
+{/*
+      {loading && <p>Cargando...</p>} */}
       </div>
     </div>
   );

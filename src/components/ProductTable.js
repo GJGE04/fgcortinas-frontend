@@ -2,7 +2,7 @@ import React from "react";
 import { Table, Button, Popconfirm, Switch } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
-const ProductTable = ({ products, onEdit, onDelete, onToggleActiveStatus }) => {
+const ProductTable = ({ products, onEdit, onDelete, onToggleActiveStatus, onChange, sortedInfo }) => {
 
   const handleEdit = (product) => {
     onEdit(product); // Llamar la función de editar pasada como prop
@@ -27,6 +27,8 @@ const ProductTable = ({ products, onEdit, onDelete, onToggleActiveStatus }) => {
       title: "Nombre",
       dataIndex: "name",
       key: "name",
+      sorter: true,
+      sortOrder: sortedInfo.columnKey === "name" && sortedInfo.order,
     },
     {
       title: "Código",
@@ -38,6 +40,8 @@ const ProductTable = ({ products, onEdit, onDelete, onToggleActiveStatus }) => {
       dataIndex: "price",
       key: "price",
       render: (_, record) => formatCurrency(record.price, record.currency),
+      sorter: true,
+      sortOrder: sortedInfo.columnKey === "price" && sortedInfo.order,
     },
     {
       title: "Precio Costo",
@@ -82,7 +86,9 @@ const ProductTable = ({ products, onEdit, onDelete, onToggleActiveStatus }) => {
     },
   ];
 
-  return <Table columns={columns} dataSource={products} rowKey="id" />;
+  return <Table columns={columns} dataSource={products} rowKey="id" 
+  onChange={onChange} // Para ordenamiento
+  />;
 };
 
 export default ProductTable;

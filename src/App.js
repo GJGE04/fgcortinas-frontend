@@ -34,13 +34,13 @@ import BudgetsPage from './pages/BudgetsPage';
 
 // Página para crear un usuario inicial
 import CrearUsuarioInicial from './pages/CrearUsuarioInicial'; // Asegúrate de tener esta ruta
-
+import ForgotPasswordPage from './pages/ForgotPasswordPage'; 
 
 import ProductListPage from './pages/ProductListPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 
 import CalendarPage from './pages/CalendarPage';
-
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function App() {
   return (
@@ -99,6 +99,19 @@ function App() {
           <Route path="/old-works" element={<OldWorksPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
+
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Superadmin']}>
+                <AdminPanel />
+              </PrivateRoute>
+            }
+          />
+
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
         </Routes>
       </AppLayout>
     </Router>

@@ -3,6 +3,10 @@ import axios from "axios";
 import { Form, Input, Button, Select, InputNumber, Row, Col, message, Space, Modal, Checkbox } from "antd";
 import { PlusOutlined, DeleteOutlined, LoadingOutlined, CloseOutlined } from '@ant-design/icons';
 import { jsPDF } from "jspdf";
+import "jspdf-autotable";  // Asegúrate de importar el plugin de autoTable
+import logo from '../assets/logo.png'; // ⚠️ asegurate de importar la imagen como un módulo
+import autoTable from 'jspdf-autotable'; // ✅ Esta SÍ importa y registra el plugin correctamente
+import QRCode from 'qrcode'; // Necesitamos el paquete qrcode para generar el QR
 import emailjs from 'emailjs-com';
 import { getProducts } from "../api/productApi"; 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api'; 
@@ -261,6 +265,7 @@ const BudgetForm = (work) => {
         // doc.text("Presupuesto: " + form.getFieldValue('name'), 10, 10);
         
         // Agrega más detalles del presupuesto aquí
+        // Título del presupuesto
         const title = form.getFieldValue('name');
         const address = form.getFieldValue('address');
         const description = form.getFieldValue('description');
@@ -290,6 +295,7 @@ const BudgetForm = (work) => {
         doc.setLineWidth(0.5);
         doc.line(10, 85, 200, 85);
         
+        /*
         // Productos
         doc.text("Productos:", 10, 90);
         let yPosition = 100;
@@ -299,6 +305,30 @@ const BudgetForm = (work) => {
         const productDetails = `${product.productId} - Cantidad: ${product.quantity} - Precio: $${product.price} - Subtotal: $${product.subtotal.toFixed(2)}`;
         doc.text(productDetails, 10, yPosition);
         yPosition += 10;
+        });
+        */
+
+        // Agregar tabla de productos con autoTable
+        const tableData = products.map(product => [
+          product.productId, 
+          product.quantity, 
+          product.price.toFixed(2), 
+          product.subtotal.toFixed(2)
+        ]);
+
+        const tableColumns = [
+          { title: "Producto", dataKey: "productId" },
+          { title: "Cantidad", dataKey: "quantity" },
+          { title: "Precio Unitario", dataKey: "price" },
+          { title: "Subtotal", dataKey: "subtotal" }
+        ];
+
+        doc.autoTable({
+          head: [tableColumns.map(col => col.title)],  // Cabecera de la tabla
+          body: tableData,                            // Datos de la tabla
+          startY: 90,                                 // Empezamos a dibujar la tabla desde la posición 90 en el eje Y
+          theme: 'grid',                              // Puedes cambiar el tema a 'striped' o 'plain'
+          margin: { top: 10 },                        // Ajusta el margen de la tabla
         });
 
         // Exportar PDF
@@ -312,7 +342,7 @@ const BudgetForm = (work) => {
     };    
     
     // Función para manejar el submit (cuando confirmamos en el modal)
-    const handleSubmit = async (values) => {
+    const handleSubmit1 = async (values) => {
       // Lógica de guardado (aquí puedes hacer la llamada a la API o cualquier otra lógica)
       console.log("Ejecutando handleSubmit...");
       // Asegúrate de recibir los valores correctamente
@@ -371,7 +401,7 @@ const BudgetForm = (work) => {
         // Generar PDF y obtener el pdfData (Blob)
         let pdfData;
         if (generatePDFOption) {
-          pdfData = generatePDF(budgetData);
+          pdfData = await generatePDF(budgetData);
         }
       
         // Enviar por correo si se seleccionó la opción
@@ -398,11 +428,41 @@ const BudgetForm = (work) => {
       }
     };
 
+    const handleSubmit = async (values) => {
+      const budgetData = {
+        ...values,
+        products,
+        totalUYU,
+        totalUSD,
+      };
+  
+      try {
+        // Si la opción de generar PDF está activada
+        if (setGeneratePDFOption) {
+          const pdfData = await generatePDF(budgetData);
+          
+          // Si la opción de enviar por correo está activada
+          if (setSendEmailOption) {
+            sendEmailWithPDF(pdfData, budgetData);
+          }
+        }
+
+        message.success('Presupuesto guardado y enviado correctamente!');
+        handleCancel(); // Cerrar modal
+    
+        // Aquí puedes agregar otras acciones como guardar el presupuesto en una base de datos
+        handleSave(values);
+      } catch (error) {
+        console.error('Error al generar el PDF o enviar el correo:', error);
+        message.error('Hubo un error al generar el PDF o enviar el correo');
+      }
+    };
+
     // Función para manejar cambios en las opciones de generar PDF y enviar correo
     const handleGeneratePDFChange = (e) => setGeneratePDFOption(e.target.checked);
     const handleSendEmailChange = (e) => setSendEmailOption(e.target.checked);
 
-    const generatePDF = (budgetData) => {
+    const generatePDF2 = (budgetData) => {
       const doc = new jsPDF();
 
       // Título
@@ -416,6 +476,7 @@ const BudgetForm = (work) => {
       doc.text(`Dirección: ${budgetData.address}`, 10, 40);
       doc.text(`Descripción: ${budgetData.description}`, 10, 50);
 
+  
       // Tabla de productos
       let yPosition = 60;
       doc.text("Productos:", 10, yPosition);
@@ -434,13 +495,14 @@ const BudgetForm = (work) => {
 
       // Productos
       yPosition += 30;
-      doc.text("Productos:", 10, 90);
+      doc.text("Detalles de Productos:", 10, yPosition);
       
       // Tabla de productos
       products.forEach((product, index) => {
       const productDetails = `${product.productId} - Cantidad: ${product.quantity} - Precio: $${product.price} - Subtotal: $${product.subtotal.toFixed(2)}`;
-      doc.text(productDetails, 10, yPosition);
-      yPosition += 10;
+      // doc.text(productDetails, 10, yPosition + 10 + (index * 10));
+      // yPosition += 10;
+      doc.text(productDetails, 10, yPosition + 10 + (index * 10));
       });
 
       // Guardar el PDF como Blob para enviarlo por correo
@@ -450,6 +512,132 @@ const BudgetForm = (work) => {
 
       return pdfData;  // Retornamos el PDF como un Blob
     };
+
+    const generatePDF = async (budgetData) => {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      return new Promise((resolve, reject) => {
+        // Cargamos el logo primero para que todo se haga después
+        const img = new Image();
+        img.src = logo;
+      
+        img.onload = () => {
+          // 1. Logo
+          const logoWidth = 50;
+          const logoHeight = 35;
+          doc.addImage(img, 'PNG', 10, 10, logoWidth, logoHeight);
+
+          // 2. Encabezado
+          doc.setFontSize(18);
+          doc.text('Presupuesto', pageWidth / 2, 20, { align: 'center' });
+
+          // Línea divisoria
+          const lineY = 10 + logoHeight + 5; // 10 es la Y original, + alto del logo, + pequeño espacio
+          doc.setDrawColor(200); // gris claro
+          doc.setLineWidth(0.5);
+          doc.line(10, lineY, pageWidth - 10, lineY); // Línea de borde a borde con margen de 10
+      
+          doc.setFontSize(12);
+          doc.setTextColor(100);
+          doc.text(`Nombre: ${budgetData.name}`, 10, lineY + 25);
+          doc.text(`Cliente: ${budgetData.client}`, 10, lineY + 32);
+          doc.text(`Técnico: ${budgetData.technician}`, 10, lineY + 39);
+          doc.text(`Dirección: ${budgetData.address}`, 10, lineY + 46);
+          doc.text(`Descripción: ${budgetData.description}`, 10, lineY + 53);
+      
+          // 3. Tabla con productos
+          const tableData = budgetData.products.map((product, index) => [
+            index + 1,
+            product.product,
+            product.quantity,
+            product.width || '-',
+            product.length || '-',
+            product.price,
+            product.discount || 0,
+            product.subtotal,
+            product.currency
+          ]); 
+      
+          const tableStartY = lineY + 53 + 10; // posición después del último texto
+          autoTable(doc, {
+            head: [[
+              '#', 'Producto', 'Cantidad', 'Ancho', 'Largo', 'Precio', 'Descuento (%)', 'Subtotal', 'Moneda'
+            ]],
+            body: tableData,
+            startY: tableStartY, // 80
+            styles: {
+              fontSize: 10,
+              cellPadding: 3,
+            },
+            headStyles: {
+              fillColor: [41, 128, 185], // Azul corporativo
+              textColor: 255,
+              halign: 'center',
+            },
+            bodyStyles: {
+              halign: 'center',
+            },
+          });
+      
+          // 4. Totales
+          const finalY = doc.lastAutoTable.finalY || 80;
+          doc.setFontSize(12);
+          doc.setTextColor(0);
+          doc.text(`Total UYU: $${budgetData.totalUYU}`, 10, finalY + 10);
+          doc.text(`Total USD: $${budgetData.totalUSD}`, 10, finalY + 17);
+      
+          // 5. Espacio para firma
+          doc.setFontSize(11);
+          doc.text('Firma del técnico:', 140, finalY + 35);
+          doc.line(140, finalY + 37, 190, finalY + 37); // Línea de firma
+      
+          // 6. Footer con fecha
+          const date = new Date().toLocaleDateString();
+          doc.setFontSize(10);
+          doc.setTextColor(120);
+          doc.text(`Fecha de generación: ${date}`, 10, 285); // Pie de página
+
+          // 7. Generar QR con información del presupuesto
+          const qrData = `
+          📄 Presupuesto: ${budgetData.name}
+          🆔 ID: ${budgetData.id}
+          👤 Cliente: ${budgetData.client}
+          🧑‍🔧 Técnico: ${budgetData.technician}
+          💲 Total UYU: $${budgetData.totalUYU}
+          💲 Total USD: $${budgetData.totalUSD}
+          📍 Dirección: ${budgetData.address}
+          📝 Descripción: ${budgetData.description}
+          🔗 Ver online: https://miempresa.com/presupuestos/${budgetData.id}
+          `;
+
+          QRCode.toDataURL(qrData, { errorCorrectionLevel: 'H' }, (err, url) => {
+            if (err) throw err;
+          
+            // Agregar el QR al PDF – en una posición más baja (abajo a la derecha)
+            const qrX = pageWidth - 60;
+            const qrY = 220; // bajamos el QR
+            const qrSize = 50;
+          
+            doc.addImage(url, 'PNG', qrX, qrY, qrSize, qrSize);
+          
+            // Agregamos texto debajo del QR
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text('Escaneá para más info', qrX + qrSize / 2, qrY + qrSize + 6, { align: 'center' });
+          
+            // Guardar el PDF
+            const pdfData = doc.output('blob');
+            doc.save(`${budgetData.name}.pdf`);
+            resolve(pdfData);
+          });  
+        };      
+      });
+    };
+    
+           
+    
+    
 
     // Función para enviar el correo con el archivo adjunto
     const sendEmailWithPDF = (pdfData, budgetData) => {
@@ -461,7 +649,14 @@ const BudgetForm = (work) => {
         const formData = new FormData();
       
         // Añadimos el archivo PDF generado al FormData
-        formData.append('file', pdfData, `${budgetData.name}.pdf`);form.getFieldValue('technicianId');
+        formData.append('file', pdfData, `${budgetData.name}.pdf`);   // form.getFieldValue('technicianId');
+
+        // Convertir el Blob en un archivo para adjuntar
+        const file = new File([pdfData], `${budgetData.name}.pdf`, { type: 'application/pdf' });
+        formData.append('file', file);
+
+        /* const file = new File([pdfData], `${budgetData.name}.pdf`, { type: 'application/pdf' });
+        formData.append('file', file); */
 
         // Añadir los datos del presupuesto (esto dependerá de tu plantilla en EmailJS)
         formData.append('clientName', budgetData.client);         // Ejemplo de campo para el nombre del cliente
@@ -491,11 +686,8 @@ const BudgetForm = (work) => {
           // Manejo de errores en caso de fallo en el envío del email
           console.error('Error al enviar el email', error);
           message.error('Error al enviar el email');
-        }
-      
+        }    
     };
-
-
 
   return (
     <div>
