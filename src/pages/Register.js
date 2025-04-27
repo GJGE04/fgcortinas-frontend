@@ -7,6 +7,8 @@ import '../css/Register.css';  // Asegúrate de tener el archivo CSS correcto
 
 const { Option } = Select;
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 const Register = () => {
   const [form] = Form.useForm();
   const [roles, setRoles] = useState([]);
@@ -15,9 +17,9 @@ const Register = () => {
 
   // Hacemos la solicitud para verificar los roles existentes
   useEffect(() => {
-    const checkRoles = async () => {
+    const checkRoles = async () => {  
       try {
-        const response = await axios.get('http://localhost:5000/api/auth/check-roles');
+        const response = await axios.get(`${API_URL}/auth/check-roles`);
         const { superadminExists, adminExists } = response.data;
 
         // Si no existe Superadmin, agregamos esa opción
@@ -40,7 +42,7 @@ const Register = () => {
     setLoading(true);
     try {
       // Enviar los datos del registro al backend
-      await axios.post('http://localhost:5000/api/auth/register', values);
+      await axios.post(`${API_URL}/auth/register`, values);
       message.success('Registro exitoso');
 
       // Redirige a la página principal después de un registro exitoso

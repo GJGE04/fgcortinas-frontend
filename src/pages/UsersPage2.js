@@ -18,13 +18,22 @@ const UsersPage2 = () => {
   const [filters, setFilters] = useState({ username: "", role: "" });
   const [sortedInfo, setSortedInfo] = useState({});
 
-
+/*
+  const ROLES = {
+    SUPERADMIN: 'Superadmin',
+    ADMIN: 'Admin',
+    EDITOR: 'Editor',
+    VENDEDOR: 'Vendedor',
+    TECNICO: 'Tecnico',
+    GUEST: 'Guest',
+  };
+*/
 
   // Obtener el token almacenado en el localStorage
   const token = localStorage.getItem('token');
 
   // Lista de roles disponibles (podrías también traerla desde el backend si prefieres)
-  const availableRoles = ['Superadmin', 'Admin', 'User', 'Editor', 'Guest', 'Technician'];  // Ejemplo de roles, estos roles pueden cambiar según tus necesidades
+  const availableRoles = ['Superadmin', 'Admin', 'Vendedor', 'Editor', 'Guest', 'Tecnico'];  // Ejemplo de roles, estos roles pueden cambiar según tus necesidades
 
   // Función para obtener los usuarios de la API
   const fetchUsuarios = async () => {
@@ -55,6 +64,7 @@ const UsersPage2 = () => {
 
   // Llamada a la API cuando el componente se monta
   useEffect(() => {
+    console.log("Entré en la página de Usuarios");
     fetchUsuarios();
 
     // Cerrar sesión al cerrar la ventana o recargar la página
@@ -197,26 +207,27 @@ const UsersPage2 = () => {
     message.success('Has cerrado sesión con éxito');
   };
 
-  const handleSwitchChange = async (checked, client) => {
+  const handleSwitchChange = async (checked, user) => {
     try {
       setLoading(true);  // Activamos la carga antes de actualizar el estado
-      const updatedClient = { ...client, activo: checked };
-      await axios.put(`/api/clients/${client._id}`, updatedClient, {
+      const updatedUser = { ...user, activo: checked };
+      await axios.put(`${API_URL}/users/${user._id}`, updatedUser, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       message.success('Estado de activo actualizado');
-      const response = await axios.get('/api/clients', {
+      const response = await axios.get(`${API_URL}/users`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       setUsuarios(response.data);
-      setLoading(false);  // Desactivamos la carga después de actualizar
+      message.success('Estado actualizado');
     } catch (error) {
-      message.error('Error al actualizar estado de activo');
-      setLoading(false);
+      message.error('Error al actualizar estado de activo');     
+    } finally {
+      setLoading(false);    // Desactivamos la carga después de actualizar
     }
   };
 
@@ -240,7 +251,7 @@ const UsersPage2 = () => {
       title: 'Rol',
       dataIndex: 'role',
       key: 'role', // Asegúrate de que la API te devuelve 'role'
-      sorter: (a, b) => a.role.localeCompare(b.email),
+      sorter: (a, b) => a.role.localeCompare(b.role),
       sortOrder: sortedInfo.columnKey === 'role' && sortedInfo.order,
     },
     {
@@ -254,6 +265,7 @@ const UsersPage2 = () => {
         />
       ),
     },
+        
     {
       title: 'Acciones',
       key: 'actions',

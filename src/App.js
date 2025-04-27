@@ -41,6 +41,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 
 import CalendarPage from './pages/CalendarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 
 function App() {
   return (
@@ -111,6 +112,7 @@ function App() {
 
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
 
         </Routes>
       </AppLayout>

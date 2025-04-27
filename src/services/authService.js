@@ -12,8 +12,12 @@ export const isAuthenticated = async () => {
   try {
     // Verificar el token en el backend
     // const isValid = await verifyToken(token);
-    const isValid = await verifyToken2(token);
-    return isValid;
+    const isValid = await verifyTokenServer(token);
+
+    const decoded = jwtDecode(token);
+    const vigente = decoded.exp * 1000 > Date.now(); // Verifica si no expiró
+
+    return isValid && vigente;
   } catch (error) {
     console.error("Error al verificar el token:", error);
     return false;
@@ -65,10 +69,10 @@ export const getCurrentUser = async () => {
 };
 
 // Función para verificar el token en el backend
-export const verifyToken = async (token) => {
+export const verifyTokenServer = async (token) => {
   try {
-    console.log("Invocando verifyToken");
-    const response = await axios.get(`${API_URL}/auth/verify-token`, {
+    console.log("Invocando verifyToken en el Server");
+    const response = await axios.get(`${API_URL}/auth/validateToken`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -77,27 +81,6 @@ export const verifyToken = async (token) => {
   } catch (error) {
     console.error("Error al verificar el Token:", error);
     return false;
-  }
-};
-
-export const verifyToken2 = async () => {
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    return { valid: false };
-  }
-
-  try {
-    const response = await axios.get('https://fgcortinas-backend.onrender.com/api/auth/verifytoken', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.data;  // Esto puede ser { valid: true/false, role: 'role' }
-  } catch (error) {
-    console.error("Error al verificar el Token", error);
-    return { valid: false };
   }
 };
 

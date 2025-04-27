@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, Layout, Button, Avatar, Dropdown } from "antd";
+import { Menu, Layout, Button, Avatar, Dropdown, Modal, Spin } from "antd";
 // import { jwtDecode } from "jwt-decode";
 
 // import { HomeOutlined, AppstoreOutlined, ShoppingCartOutlined, SettingOutlined } from "@ant-design/icons";
@@ -21,10 +21,14 @@ import {
     // FileTextOutlined
   } from "@ant-design/icons";
 
-  import logo from "../assets/logo.png"; // Asegúrate de que la ruta del logo sea correcta
-  import { getUserRole, isAuthenticated, getUsername } from '../services/authService'; // Importa las funciones de authService
+import logo from "../assets/logo.png"; // Asegúrate de que la ruta del logo sea correcta
+import { getUserRole, isAuthenticated, getUsername } from '../services/authService'; // Importa las funciones de authService
 
 const { Header, Sider, Content } = Layout;
+
+// const role = localStorage.getItem('role');
+
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const AppLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -102,36 +106,26 @@ const AppLayout = ({ children }) => {
 
     checkAuth();
   }, [location.pathname]);  // ← ¡esto es clave! para re-ejecutar el efecto cada vez que cambie la ruta. Así nos aseguramos de que después del login (cuando cambia a /dashboard), se lea el localStorage.
-
-  /* v.2
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const decoded = jwtDecode(token);  // Decodificar el token
-          setUserRole(decoded.role); // Asumiendo que el rol está en decoded.role
-        } catch (error) {
-          console.error("Error al decodificar el token:", error);
-        }
-      }
-      setIsLoading(false);  // Setea el estado de carga a falso cuando se termine
-    };
-    checkAuth();
-  }, []);
-  */
-
+/*
   if (isLoading) {
     return <div>Cargando...</div>;  // Muestra algo mientras se carga el estado
+  } */
+
+  if (isLoading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Spin size="large" tip="Cargando usuario..." />
+      </div>
+    );
   }
 
-    // Verificar si la ruta es de las páginas donde no quieres mostrar la barra lateral
-    const showSider = !["/login", "/register", "/welcome", "/"].includes(location.pathname);
+  // Verificar si la ruta es de las páginas donde no quieres mostrar la barra lateral
+  const showSider = !["/login", "/register", "/welcome", "/"].includes(location.pathname);
 
-    // Mostrar el menu lateral solo si el rol es admin o superadmin
-    const showAdminMenu = userRole === "Admin" || userRole === "Superadmin";
-    console.log("userRole:", userRole); // Verifica el valor de userRole
-    console.log("showAdminMenu =", showAdminMenu); // Verifica el valor de showAdminMenu
+  // Mostrar el menu lateral solo si el rol es admin o superadmin
+  const showAdminMenu = userRole === "Admin" || userRole === "Superadmin";
+  console.log("userRole:", userRole); // Verifica el valor de userRole
+  console.log("showAdminMenu =", showAdminMenu); // Verifica el valor de showAdminMenu
 
   // Función de cerrar sesión
   const handleLogout = () => {
@@ -141,14 +135,35 @@ const AppLayout = ({ children }) => {
     navigate("/login");                 // Redirige al usuario a la página de login
   };
 
+  const confirmLogout = () => {
+    Modal.confirm({
+      title: "¿Seguro que quieres cerrar sesión?",
+      onOk: handleLogout,
+    }); 
+  };  
+
   // Función para ir a la página anterior
   const goBack = () => {
-    navigate(-1); // Navega hacia la página anterior
-  };
+    if (window.history.length > 1) {
+      navigate(-1);  // Navega hacia la página anterior
+    } else {
+      navigate("/dashboard");  // Redirige al dashboard si no hay historial
+    }
+  };  
 
   // Función para ir a la página inicial
   const goHomePage = () => {
     navigate("/register"); // Navega hacia la página anterior
+  };
+
+  // Función para ir a la página inicial
+  const goChangePassword = () => {
+    const token = localStorage.getItem("token");  
+    if (token) {
+      navigate("/change-password"); // Pasar el token como query param
+    } else {
+      navigate("/login"); // Si no hay token, redirigir al login
+    }
   };
 
   return (
@@ -176,46 +191,57 @@ const AppLayout = ({ children }) => {
             <Link to="/products">Productos</Link>
           </Menu.Item>
 
-          {userRole && (userRole === 'Admin' || userRole === 'Superadmin') ? (
+          {/* Vendedor */}
+          {userRole && (userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Vendedor') ? (
             <Menu.Item key="4" icon={<ShoppingCartOutlined />}>
               <Link to="/order">Pedidos</Link>
             </Menu.Item>
           ) : null}
 
           {/* Mostrar el menú de "Usuarios" solo si el rol es admin o superadmin */}
-          {localStorage.getItem('role') === 'Admin' || localStorage.getItem('role') === 'Superadmin' ? (
+          {userRole === 'Admin' || userRole === 'Superadmin' ? (
               <Menu.Item key="5" icon={<UserOutlined />}>
                 <Link to="/users">Usuarios</Link>
               </Menu.Item>
           ) : null}
 
-          <Menu.Item key="6" icon={<TeamOutlined />}>
-            <Link to="/clients">Clientes</Link>
-          </Menu.Item>
+          {/* Mostrar el menú de "Clientes" solo si el rol es admin o superadmin */}
+          {(userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Editor' || userRole === 'Tecnico') && (
+            <>
+              <Menu.Item key="6" icon={<TeamOutlined />}>
+                <Link to="/clients">Clientes</Link>
+              </Menu.Item>
+              <Menu.Item key="7" icon={<FileDoneOutlined />}>
+                <Link to="/works">Trabajos</Link>
+              </Menu.Item>
+              <Menu.Item key="8" icon={<DollarOutlined />}>
+                <Link to="/budgets">Presupuestos</Link>
+              </Menu.Item>
+              <Menu.Item key="9" icon={<HistoryOutlined />}>
+                <Link to="/old-works">Trabajos Antiguos</Link>
+              </Menu.Item>
 
-          <Menu.Item key="7" icon={<FileDoneOutlined />}>
-            <Link to="/works">Trabajos</Link>
-          </Menu.Item>
-
-          <Menu.Item key="8" icon={<DollarOutlined />}>
-            <Link to="/budgets">Presupuestos</Link>
-          </Menu.Item>
-
-          <Menu.Item key="9" icon={<HistoryOutlined />}>
-            <Link to="/old-works">Trabajos Antiguos</Link>
-          </Menu.Item>
-
-          <Menu.Item key="10" icon={<CalendarOutlined />}>
-            <Link to="/calendar">Calendario</Link>
-          </Menu.Item>
+              <Menu.Item key="10" icon={<CalendarOutlined />}>
+                <Link to="/calendar">Calendario</Link>
+              </Menu.Item>
+            </>
+          )}
 
           {/* Sección de Administrador */}
           {/* Mostrar el menú de administración solo si el rol es admin o superadmin */}
           {showAdminMenu && (
-              <Menu.Item key="10" icon={<SettingOutlined />}>
+              <Menu.Item key="11" icon={<SettingOutlined />}>
                 <Link to="/admin">Admin</Link>
               </Menu.Item>
             )}
+
+            {/* Guest */} {/*
+            {role === 'Guest' && (
+              <Menu.Item key="12" icon={<UserOutlined />}>
+                <Link to="/perfil">Mi Perfil</Link>
+              </Menu.Item>
+            )}  */}
+
         </Menu>
       </Sider>
       )}
@@ -250,18 +276,19 @@ const AppLayout = ({ children }) => {
             arrow
           >
             <div style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: "10px" }}>
-              <Avatar
-                style={{
-                  backgroundColor: "#ffffff33",
-                  color: "#fff",
-                  fontWeight: "bold"
-                }}
-              >
-                {username?.charAt(0).toUpperCase() || "U"}
-              </Avatar>
-              <span style={{ fontSize: "16px" }}>
-                Bienvenido, <strong>{username}</strong>
-              </span>
+              {username ? (
+                <>
+                  <Avatar
+                    style={{ backgroundColor: "#ffffff33", color: "#fff", fontWeight: "bold" }}>
+                    {username?.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <span style={{ fontSize: "16px" }}>
+                    Bienvenido, <strong>{username}</strong>
+                  </span>
+                </>
+              ) : (
+                <UserOutlined style={{ fontSize: "18px", color: "white" }} />
+              )}
             </div>
           </Dropdown>
 
@@ -331,7 +358,33 @@ const AppLayout = ({ children }) => {
             </Button>
 
             <Button
-              onClick={handleLogout}
+              onClick={goChangePassword}
+              style={{
+                background: "transparent",
+                color: "white",
+                border: "2px solid white",
+                padding: "5px 15px",
+                fontSize: "14px",
+                borderRadius: "5px",
+                display: "inline-flex",
+                alignItems: "center",
+                transition: "background 0.3s, color 0.3s"
+              }}
+              disabled={!localStorage.getItem("token")} // Deshabilitar si no hay token
+              onMouseEnter={(e) => {
+                e.target.style.background = "#F5F5F5";
+                e.target.style.color = "#D32F2F";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+                e.target.style.color = "white";
+              }}
+            >
+              Cambiar contraseña
+            </Button>
+
+            <Button
+              onClick={handleLogout}    // confirmLogout
               style={{
                 background: "transparent",
                 color: "white",

@@ -59,7 +59,7 @@ const AuthForm = ({ onLoginSuccess }) => {
 
   return (
     <div className="auth-form">
-      <h2>Iniciar SesiónP</h2>
+      <h2>Iniciar Sesión</h2>
       <form onSubmit={handleSubmit}>
         <div>
           <input

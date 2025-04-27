@@ -1,10 +1,11 @@
+// debería ser : src/services/productService.js
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';  // `${API_URL}
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('token');      // Recuperar el token del localStorage
-  console.log("Token en getAUthHeader: " + token);
+  // console.log("Token en getAUthHeader: " + token);
   return token ? { Authorization: `Bearer ${token}` } : {};     // Si hay token, lo agrega al header
 };
 
