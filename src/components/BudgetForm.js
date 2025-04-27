@@ -455,7 +455,7 @@ const BudgetForm = ({ work }) => {
       });
     }; 
 
-    const handleGeneratePDF = async () => { ////////////////////////////////////////////////////
+    const handleGeneratePDF = async () => { 
       console.log(" generr PDF!!!!")
       setShowPDFModal(false);
       setLoading(true);
