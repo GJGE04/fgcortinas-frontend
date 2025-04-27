@@ -456,7 +456,7 @@ const BudgetForm = ({ work }) => {
     }; 
 
     const handleGeneratePDF = async () => { 
-      console.log(" generr PDF!!!!")
+      console.log(" generar PDF!!!!")
       setShowPDFModal(false);
       setLoading(true);
       try {
