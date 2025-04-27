@@ -3,7 +3,7 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main  # Desplegar cuando haya cambios en la rama principal (puede ser master o la que utilices)
+      - master  # Desplegar cuando haya cambios en la rama principal (puede ser master o la que utilices)
 
 jobs:
   deploy:
