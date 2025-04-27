@@ -3,7 +3,7 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - master  # Desplegar cuando haya cambios en la rama principal (puede ser master o la que utilices)
+      - main  # Desplegar cuando haya cambios en la rama principal (puede ser master o la que utilices)
 
 jobs:
   deploy:
@@ -25,7 +25,7 @@ jobs:
         run: npm run build
 
       - name: Firebase Deploy
-        uses: wzieba/Firebase-Action@v2
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          firebase_token: ${{ secrets.FIREBASE_AUTH_TOKEN }}
-          project_id: fg-cortinas-app
+          projectId: fg-cortinas-app
+          token: ${{ secrets.FIREBASE_AUTH_TOKEN }}
