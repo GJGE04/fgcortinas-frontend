@@ -25,7 +25,7 @@ jobs:
         run: npm run build
 
       - name: Firebase Deploy
-        uses: wzieba/Firebase-Action@v3
+        uses: wzieba/Firebase-Action@v2
         with:
           firebase_token: ${{ secrets.FIREBASE_AUTH_TOKEN }}
           project_id: fg-cortinas-app
