@@ -220,7 +220,6 @@ const BudgetForm = ({ work }) => {
     if (isDifferent) setProducts(updatedProducts);    // <- solo actualiza si realmente cambió
     console.log("Different", isDifferent);  */
 
-
     const totalUSD = products.filter(p => p.currency === "USD").reduce((acc, p) => acc + p.subtotal, 0);
     const totalUYU = products.filter(p => p.currency === "UYU").reduce((acc, p) => acc + p.subtotal, 0);
     setTotals({ USD: totalUSD, UYU: totalUYU });  
