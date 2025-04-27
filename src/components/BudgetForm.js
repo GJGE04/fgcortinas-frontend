@@ -315,10 +315,7 @@ const BudgetForm = ({ work }) => {
         // subtotal = 0;
         break;
     }
-
-    // Calcular el subtotal por producto
-    //updatedProducts[index].subtotal = 5; //= calculateSubtotal(updatedProducts[index]);
-
+    
     setProducts(updatedProducts);
     
     /*
