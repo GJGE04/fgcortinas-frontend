@@ -12,6 +12,8 @@ const ProductsPage = () => {
   const [isCreating, setIsCreating] = useState(false);  // Estado para saber si estamos creando o editando
   const [filters, setFilters] = useState({ name: "", isActive: null });  // Filtros por título y estado
   const [sortedInfo, setSortedInfo] = useState({ order: null, columnKey: null });
+  const [errorModalMessage, setErrorModalMessage] = useState('');
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
 
   useEffect(() => {
     // Cargar los productos desde la base de datos al cargar el componente
@@ -137,9 +139,18 @@ const ProductsPage = () => {
       setProducts(productsData);    // Actualizamos la lista de productos
       setIsModalVisible(false);     // Cerramos el modal
     } catch (error) {
-      console.error("Error al guardar el producto:", error);
-      message.error("Error al guardar el producto.");
-      alert(`Error: ${error.message || "Error desconocido"}`);
+      // alert(`Error: ${error.message || "Error desconocido"}`);
+
+      console.log("Error recibido al guardar el producto:", error);
+      if (error.response && error.response.status === 403) {
+        console.log("Mostrando modal de error personalizado...");
+        // Establece el mensaje del modal de error y lo muestra
+        setErrorModalMessage('No tienes permiso para editar este producto. Asegúrate de tener los permisos adecuados.');
+        setErrorModalVisible(true);
+      }
+      else {
+              message.error("Error al guardar el producto.");
+          }
     }
   };  
   
@@ -208,6 +219,16 @@ const ProductsPage = () => {
           // Otras funciones que necesites
           onSave={handleSave} 
         />
+      </Modal>
+
+      <Modal
+              title="Acceso Denegado"
+              open={errorModalVisible}
+              onOk={() => setErrorModalVisible(false)}
+              onCancel={() => setErrorModalVisible(false)}
+              okText="Entendido"
+            >
+              <p>{errorModalMessage}</p>
       </Modal>
     </div>
   );
