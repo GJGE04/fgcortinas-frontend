@@ -26,4 +26,19 @@ export const getTechnicians = async () => {
     }
 };
 
+// Fetch clients from the backend
+export const getClients = async () => {
+  console.log('Cargando los clientes desde la API:');
+  
+  try {
+    const response = await axios.get(`${API_URL}/clients/getClient`, {
+      headers: getAuthHeader(),
+    }); 
+    return response.data
+  } catch (error) {
+    console.error("Error al obtener clientes:", error);
+    message.error("No se pudo cargar los clientes");
+  }
+};
+
 

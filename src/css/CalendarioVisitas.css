@@ -1,0 +1,84 @@
+/* CalendarioVisitas.css */
+
+.fc {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  .fc-toolbar-title {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .fc-button {
+    background-color: #1976D2;
+    border: none;
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    font-weight: bold;
+    text-transform: capitalize;
+    transition: background-color 0.3s;
+  }
+  
+  .fc-button:hover {
+    background-color: #115293;
+  }
+  
+  .fc-button-primary:not(:disabled).fc-button-active,
+  .fc-button-primary:not(:disabled):active {
+    background-color: #115293;
+    box-shadow: none;
+  }
+  
+  .fc-daygrid-day-number {
+    font-weight: 600;
+    color: #1976D2;
+  }
+  
+  .fc-event {
+    background-color: #1976D2;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    padding: 0.2rem;
+    text-align: center;
+  }
+  
+  .fc-event-title {
+    white-space: normal;
+  }
+  
+  .fc-daygrid-event-dot {
+    display: none;
+  }
+  
+  /* Modal */
+  .modal {
+    border-radius: 12px;
+  }
+  
+  /* Botones dentro del Modal */
+  .modal button {
+    border-radius: 8px;
+    text-transform: none;
+    font-weight: bold;
+  }
+  
+  /* Toast (Snackbar) */
+  .MuiSnackbar-root {
+    top: 1rem !important;
+  }
+  
+  /* Form Fields */
+  .MuiTextField-root {
+    margin-bottom: 1rem;
+  }
+  
+  /* Animaciones suaves */
+  .fc .fc-button {
+    transition: all 0.3s ease-in-out;
+  }
+  

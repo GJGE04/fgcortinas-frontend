@@ -30,7 +30,7 @@ import WorksPage from './pages/WorksPage';
 import OldWorksPage from './pages/OldWorksPage';
 import UsersPage from './pages/UsersPage2';
 import UsersForm from './components/UsersForm2';
-import BudgetsPage from './pages/BudgetsPage';
+import BudgetsPage from './pages/Budgets/BudgetsTable';
 
 // Página para crear un usuario inicial
 import CrearUsuarioInicial from './pages/CrearUsuarioInicial'; // Asegúrate de tener esta ruta
@@ -42,6 +42,9 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import CalendarPage from './pages/CalendarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+
+// import CalendarioVisitas from "./components/CalendarioVisitas"; // o tu ruta real
+
 
 function App() {
   return (
@@ -113,6 +116,8 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
+
+      {/*    <Route path="/calendario" element={<CalendarioVisitas />} />  */}
 
         </Routes>
       </AppLayout>

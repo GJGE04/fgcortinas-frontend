@@ -1,25 +1,41 @@
 import React, { useState, useEffect } from "react";
-// import axios from "axios";
-import { Form, Input, Button, Select, InputNumber, Row, Col, message, Space, Modal, Checkbox, Collapse, Tooltip } from "antd";
+import axios from "axios";
+import { Form, Input, Button, Row, Col, message, Space, Modal, Checkbox, Collapse, Tooltip } from "antd";
 import { PlusOutlined, DeleteOutlined, LoadingOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import "jspdf-autotable";  // Asegúrate de importar el plugin de autoTable
+
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Tema de PrimeReact
+import 'primereact/resources/primereact.min.css';  // Estilos generales de PrimeReact
+import 'primeicons/primeicons.css';  // Iconos de PrimeReact
+
+// import ProductsPanel from './components/BudgetForm/ProductsPanel';
+import ProductsPanel from './BudgetForm/ProductsPanel'; //arreglar url en verison final
+import SchedulePanel from './BudgetForm/VisitSchedulingPanel';
+import GeneralDataPanel from './BudgetForm/GeneralDataPanel';
+import ResumenPanel from './BudgetForm/ResumenPanel'; // ajusta el path si es necesario
+import EventModal from './BudgetForm/EventModal'; 
 
 import { getProducts } from "../api/productApi"; 
 import { getTechnicians } from "../services/apiService";  
 import { sendPDFToBackend } from "../services/emailService"; 
 import { generatePDF } from '../services/pdfService'; // ajustá la ruta si es necesario
-import { calculateSubtotal } from "../utils/calculos";
+import { calculateSubtotal } from "../utils/calculos";  
 // import { useCallback } from "react";    // useCallback es un hook de React que te permite memorizar una función, es decir, evitar que se cree una nueva versión de esa función en cada render. 
                                         // Esto es útil en dos casos principales:
                                             // 1. Cuando pasás funciones como props a componentes hijos que dependen de referencialidad (optimización).
                                             // 2. Cuando querés evitar warnings como el que estás viendo, porque React puede "saber" si esa función cambió o no.
 
+import "../css/CalendarioVisitas.css";
+import esLocale from '@fullcalendar/core/locales/es';                                       
+
 const { Panel } = Collapse;
+
+const clientId = '624383334135-n745f2bncl6ucgsmnls4hlvujmmohk51.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
 
 // Inicializamos EmailJS con tu Public Key (User ID)
 // emailjs.init('G10RHxIwl7yP1iew5');  // Aquí va tu public key
 
-const BudgetForm = ({ work }) => {
+const BudgetForm = ({ work, onClose }) => {
     // Verifica que work no sea undefined
   console.log("work en BudgetForm:", work);  
   const workId = work ? work._id : null;     // Aquí accedes al ID del trabajo
@@ -45,12 +61,6 @@ const BudgetForm = ({ work }) => {
   const [availableProducts, setAvailableProducts] = useState([]);
   const [technicians, setTechnicians] = useState([]);  // Técnicos
 
-  const [cantidadHabilitado, setCantidadHabilitado] = useState(false);
-  const [anchoHabilitado, setAnchoHabilitado] = useState(false);
-  const [largoHabilitado, setLargoHabilitado] = useState(false);
-  const [precioHabilitado, setPrecioHabilitado] = useState(false);
-  const [descuentoHabilitado, setDescuentoHabilitado] = useState(false);
-
   const [generatePDFOption, setGeneratePDFOption] = useState(false);
   const [sendEmailOption, setSendEmailOption] = useState(false);
   
@@ -58,12 +68,25 @@ const BudgetForm = ({ work }) => {
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [pendingBudgetData, setPendingBudgetData] = useState(null);
 
+  // Al principio de tu componente, nuevos estados:
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+
+  // Estados necesarios
+  const [activePanelKey, setActivePanelKey] = useState(1); // 1 = Panel 1, 2 = Panel 2
+  const [selectedDateTime, setSelectedDateTime] = useState('');
+  const [newQuote, setNewQuote] = useState({
+    visitDate: "",
+    // podés agregar más campos si los necesitás
+  });
+
   // Función para calcular los subtotales y el total de todos los productos. // ✅ Función memorizada para evitar warning en useEffect
   /*const calculateTotals = useCallback((productsList = products) => {   // ✅ ¿Cómo evitar que React lo considere “nueva” cada vez?
                                                                       // Usando useCallback, que "memoriza" esa función y evita que se cree una nueva si no cambian sus dependencias.
     console.log('Entrando en calculateTotals:');
-    let totalUSD = 0;
-    let totalUYU = 0;
+    let totalUSD = 0; let totalUYU = 0;
 
     // Recorremos los productos para calcular los totales
     productsList.forEach(product => {
@@ -73,11 +96,9 @@ const BudgetForm = ({ work }) => {
         totalUYU += product.subtotal; // Lo mismo aquí para UYU
       }
     });
-    console.log("A : " + totalUSD);
-    console.log("B : " + totalUYU);
+    console.log("A : " + totalUSD);   console.log("B : " + totalUYU);
     // Actualizamos los valores de los totales
-    setTotalUSD(totalUSD);
-    setTotalUYU(totalUYU);
+    setTotalUSD(totalUSD);  setTotalUYU(totalUYU);
   }, [products]);   */  // Asegúrate de incluir lo que uses dentro. // Se volverá a crear solo si cambia 'products'
 
   // El comportamiento exacto de cuándo se invoca useEffect depende de cómo lo configures:
@@ -105,7 +126,6 @@ const BudgetForm = ({ work }) => {
   // y no se ejecutará en actualizaciones posteriores. Este comportamiento es útil para realizar tareas como obtener datos solo una vez.
   useEffect(() => {
     console.log("Componente montado");
-
     const fetchData = async () => {
       try{
         // Técnicos
@@ -166,6 +186,32 @@ const BudgetForm = ({ work }) => {
 
   }, []);
 
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("/api/calendar/events");
+        const data = await res.json();
+  
+        const formattedEvents = data.events.map((event) => ({
+          id: event.id,
+          title: event.summary,
+          start: event.start.dateTime || event.start.date,
+          end: event.end.dateTime || event.end.date,
+          description: event.description,
+          backgroundColor: "#1976d2", // o el color que prefieras
+        }));
+  
+        setCalendarEvents(formattedEvents);
+        console.log("📅 Eventos cargados:", formattedEvents);
+      } catch (error) {
+        console.error("❌ Error cargando eventos:", error);
+      }
+    };
+  
+    fetchEvents();
+  }, []);
+  
+
   // ✅ Manejo de cambios por campo. // Función para manejar los cambios en los valores de cantidad, ancho, largo, descuento
   // ✅ Paso 1: Cada vez que cambiás un campo de un producto, actualizás el estado
   const handleProductDetailChange = (index, field, value) => {    // Cuando cambia un detalle del producto
@@ -197,8 +243,6 @@ const BudgetForm = ({ work }) => {
 
       return updatedProducts;
     });
-    console.log("ProductsOut: ", products);
-
   };
 
   // ✅ useEffect que calcula subtotales solo cuando cambia la data (previniendo loops infinitos)
@@ -226,9 +270,8 @@ const BudgetForm = ({ work }) => {
     console.log("USD", totalUSD);   console.log("UYU", totalUYU);
   }, [products]); // ✅ ¿Y cómo se activa eso?  ->  Cada vez que cambiás un valor en el formulario: (handleProductDetailChange)
   
-
   // funcion que sustituye el useEffect anterior para optimizar para recalcular solo el producto modificado, en lugar de recalcular todo el array de productos.
-  const updateProduct = (updatedProduct) => {
+/*  const updateProduct = (updatedProduct) => {
 
     console.log("updatedProduct", updatedProduct);
     const subtotal = calculateSubtotal(updatedProduct);
@@ -244,52 +287,41 @@ const BudgetForm = ({ work }) => {
         product.productId === newProduct.productId ? newProduct : product
       )
     );
-  };
+  };  */
   
   // Función que maneja los cambios en los productos
   const handleProductChange = (index, field, value) => {
-    console.log('Entrando en handleProductChange:');
-
     const foundProduct = availableProducts.find(product => product.value === value);
-    console.log("FoundProduct: ", foundProduct);
-    // setSelectedProduct(foundProduct); // sigue actualizando el estado global si lo necesitás
-    console.log("ProductType title:", foundProduct.productType);
-    console.log("ProductType format:", foundProduct.format);
+    if (!foundProduct) return;
 
-    // Crea una copia del estado de productos
-    const updatedProducts = [...products];  
-    console.log(...products);
-    console.log("updatedProducts: ", updatedProducts);
-
-    updatedProducts[index].productId = value;
-    updatedProducts[index].price = foundProduct.price;
-    updatedProducts[index].currency = foundProduct.currency || 'USD';
-    updatedProducts[index].format = foundProduct.format || 'null';
-
-    // Actualiza el estado de los productos
-    setProducts(updatedProducts);
-    console.log("updatedProducts: ", updatedProducts)
-
-    // habilitarCantidad(); habilitarPrecio(); habilitarDescuento(); 
-    // Primero, deshabilitamos todo
-    updatedProducts[index].habilitado = {
-      quantityC: false,
-      widthC: false,
-      lengthC: false,
-      priceC: false,
-      discountC: false,
-    };   // priceC: false, discountC
-    
+    // ✅ Mostrar el título y el formato del tipo de producto
+      console.log("ProductType title:", foundProduct.productType);
+      console.log("ProductType format:", foundProduct.format); // 🎯 esto es lo que querés
+  
+    const updatedProducts = [...products];    // Crea una copia del estado de productos
+    updatedProducts[index] = {
+      ...updatedProducts[index],
+      productId: value,
+      name: foundProduct.label,
+      price: foundProduct.price,
+      currency: foundProduct.currency || 'USD',
+      format: foundProduct.format || null,
+      habilitado: {     // Primero, deshabilitamos todo
+        quantityC: false,
+        widthC: false,
+        lengthC: false,
+        priceC: false,
+        discountC: false,
+      },
+    };
+  
     switch (foundProduct.format) {
       case "Unidad":
-        // subtotal = price * quantity;
         updatedProducts[index].habilitado.quantityC = true;
         updatedProducts[index].habilitado.priceC = true;
         updatedProducts[index].habilitado.discountC = true;
         break;
       case "Ancho x Largo":
-        //habilitarAncho();
-        //habilitarLargo();
         updatedProducts[index].habilitado.quantityC = true;
         updatedProducts[index].habilitado.priceC = true;
         updatedProducts[index].habilitado.discountC = true;
@@ -297,14 +329,7 @@ const BudgetForm = ({ work }) => {
         updatedProducts[index].habilitado.lengthC = true;
         break;
       case "Lado * Lado x Precio":
-        //habilitarLargo();
-        updatedProducts[index].habilitado.quantityC = true;
-        updatedProducts[index].habilitado.priceC = true;
-        updatedProducts[index].habilitado.discountC = true;
-        updatedProducts[index].habilitado.lengthC = true;
-        break;
       case "Unidad x Largo":
-        //habilitarLargo();
         updatedProducts[index].habilitado.quantityC = true;
         updatedProducts[index].habilitado.priceC = true;
         updatedProducts[index].habilitado.discountC = true;
@@ -312,50 +337,34 @@ const BudgetForm = ({ work }) => {
         break;
       default:
         console.warn(`Formato no reconocido: ${foundProduct.format}`);
-        // subtotal = 0;
+    }
+  
+    // Recalcular subtotal
+    const q = updatedProducts[index].quantity ?? 1;
+    const w = updatedProducts[index].width ?? 1;
+    const l = updatedProducts[index].length ?? 1;
+    const p = updatedProducts[index].price ?? 0;
+    const d = updatedProducts[index].discount ?? 0;
+  
+    let area = 1;
+    switch (foundProduct.format) {
+      case "Ancho x Largo":
+        area = w * l;
         break;
+      case "Lado * Lado x Precio":
+      case "Unidad x Largo":
+        area = l;
+        break;
+      default:
+        area = 1;
     }
-    
-    setProducts(updatedProducts);
-    
-    /*
+  
+    const subtotal = q * area * p * (1 - d / 100);
+    updatedProducts[index].subtotal = parseFloat(subtotal.toFixed(2));
+  
+    setProducts(updatedProducts);     // Actualiza el estado de los productos
     // calculateTotals(updatedProducts);
-    calculateTotals();
-    */
-  };
-
-  // Función que maneja los cambios en los productos
-  const handleProductChangeOld = (index, field, value) => {
-    console.log('Entrando en handleProductChange:');
-    // Crea una copia del estado de productos
-    const updatedProducts = [...products];
-    updatedProducts[index][field] = value;
-
-    // Si el campo es productId, actualiza también el precio y la moneda
-    if (field === 'productId') {
-      const selectedProduct = availableProducts.find(product => product.value === value);
-      updatedProducts[index].price = selectedProduct ? selectedProduct.price : 0; // Ajusta según la estructura del producto
-      updatedProducts[index].currency = selectedProduct ? selectedProduct.currency : 'USD';
-
-      // console.log(availableProducts);
-      // ✅ Mostrar el título y el formato del tipo de producto
-     // if (selectedProduct?.productType && selectedProduct?.format) {
-        console.log("ProductType title:", selectedProduct.productType);
-        console.log("ProductType format:", selectedProduct.format); // 🎯 esto es lo que querés
-      //}
-    }
-    // Actualiza el estado de los productos
-    setProducts(updatedProducts);
-    
-    // calculateTotals(updatedProducts);
-    // calculateTotals();
-  };
-
-  const habilitarCantidad = () => { setCantidadHabilitado(true); };
-  const habilitarAncho = () => { setAnchoHabilitado(true); };
-  const habilitarLargo = () => { setLargoHabilitado(true); };
-  const habilitarPrecio = () => { setPrecioHabilitado(true); };
-  const habilitarDescuento = () => { setDescuentoHabilitado(true); };   
+  };  
 
   // Función para agregar un nuevo producto
   const addProduct = () => {
@@ -375,81 +384,113 @@ const BudgetForm = ({ work }) => {
 
   // Handle cancel and close the modal
   const handleCancel = () => {
+    console.log("Cancelando el modal de crear presupuesto..."); 
     form.resetFields();
-    setProducts([{ productId: "", quantity: 1, width: 0, length: 0, price: 0, discount: 0, subtotal: 0 }]);
+    setProducts([{ productId: "", quantity: 0, width: 0, length: 0, price: 0, discount: 0, subtotal: 0 }]);
     //setTotalUSD(0);
     //setTotalUYU(0);
+    onClose();
   };
 
     const handleSubmit = async (values) => {
       console.log("Ejecutando handleSubmit...");  
       console.log ("Values: " , values);        // Asegúrate de recibir los valores correctamente
-      // Recopilamos todos los datos del formulario
-      // const { name, address, description, technicianId } = values;
-      const {name} = values;
+      
+      try {
+        // 🔍 Validación de visita técnica. // Verificamos que tenga fecha/hora
+        if (!newQuote.start || !newQuote.end) {
+          message.error("Debes seleccionar una fecha y hora para la visita.");
+          alert("❗ Debes agendar una visita técnica antes de continuar.");
+          return;
+        }
 
-      console.log ("Tecnicos: " , technicians); 
-      console.log(name);
-      const tecnicoSeleccionadoId = form.getFieldValue('technicianId');
-      const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
-      const tecnicoName = tecnicoSeleccionado.label
-      console.log("Tecnico: " , tecnicoName);
+        // Crear evento en Google Calendar
+        const eventData = {
+          summary: 'Visita técnica',    // summary: `Visita técnica - ${clientName}`,
+          description: 'Agendada desde el formulario completo de FG Cortinas',    
+          // description: `Visita técnica agendada para el cliente: ${clientName}, atendida por el técnico: ${technicianName}.`,
+          // description: `Visita técnica para el cliente ${values.nombreCliente || 'sin nombre'}`,
+          start: newQuote.start,
+          end: newQuote.end,
+        };
+    
+        const result = await axios.post('/api/calendar/create-event', eventData);
+        console.log('✅ Evento agendado:', result.data);
+    
+      } catch (error) {
+        console.error('❌ Error al agendar visita:', error);
+        message.error('No se pudo agendar la visita técnica');
+        return; // Evitamos continuar si falla
+      }
+      
+      // continuar con guardar presupuesto, generar PDF, etc...
+        
+      try{
+        // Recopilamos todos los datos del formulario
+        // const { name, address, description, technicianId } = values;
+        const {name} = values;
 
-      if (products.length === 0 || products.some(p => !p.productId)) {
-        console.error("Debe agregar al menos un producto válido al presupuesto.");
-        message.warning("Debe agregar al menos un producto válido al presupuesto.");
-        setLoading(false);
-        return;
-      }      
+        console.log ("Tecnicos: " , technicians); 
+        console.log(name);
+        console.log ("VALUES: " , values); 
 
-      // if (loading) return;
-      // setLoading(true);
+          const tecnicoSeleccionadoId = form.getFieldValue('technicianId');
+          const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
+          const tecnicoName = tecnicoSeleccionado?.label || 'Sin técnico';
+          console.log("Tecnico: " , tecnicoName);
 
-      const budgetData = {
-        ...values,
-        products,
-        totals: {
-          UYU: (totals.UYU && !isNaN(totals.UYU)) ? totals.UYU.toFixed(2) : '0.00',   // totalUYU,
-          USD: (totals.USD && !isNaN(totals.USD)) ? totals.USD.toFixed(2) : '0.00',   // totalUSD,
-        }, 
-        clienteName,
-        tecnicoName
-      };
+          if (products.length === 0 || products.some(p => !p.productId)) {
+            console.error("Debe agregar al menos un producto válido al presupuesto.");
+            message.warning("Debe agregar al menos un producto válido al presupuesto.");
+            // setLoading(false);
+            return;
+          }      
+          // if (loading) return;
+          // setLoading(true);
 
-      console.log("BudgetData: ", budgetData);
-      console.log(showPDFModal);
-      // Mostramos modal de confirmación
-      setPendingBudgetData(budgetData);   // Guardamos fuera del scope
-      setShowPDFModal(true);              // Mostramos el modal
+          const budgetData = {
+            ...values,
+            products,
+            totals: {
+              UYU: (totals.UYU && !isNaN(totals.UYU)) ? totals.UYU.toFixed(2) : '0.00',   // totalUYU,
+              USD: (totals.USD && !isNaN(totals.USD)) ? totals.USD.toFixed(2) : '0.00',   // totalUSD,
+            }, 
+            clienteName,
+            tecnicoName,
+            // 🔹 Agregamos la visita técnica
+            visita: {
+              start: newQuote.start,
+              end: newQuote.end,
+            },
+          };
+
+          console.log("📦 Datos del presupuesto:", budgetData);
+          console.log(showPDFModal);
+          // Mostramos modal de confirmación
+          setPendingBudgetData(budgetData);   // Guardamos fuera del scope
+          setShowPDFModal(true);              // Mostramos el modal
+
+          // Enviás a tu backend:
+          await fetch("/api/budgets/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(budgetData),
+          });
+
+          alert("✅ Presupuesto creado correctamente");
+          // Opcional: resetear el formulario
+
+          message.success("✅ Visita agendada y presupuesto listo");
+  
+        } catch (error) {
+          console.error('❌ Error al preparar el presupuesto:', error);
+          message.error('Error al generar el presupuesto'); // Opcional: mensaje de error
+          alert("❌ Falló la creación del presupuesto");
+        }
+
+        message.success("Visita agendada y presupuesto registrado con éxito");
+        // Aquí podrías enviar el presupuesto completo también
     };
-
-    const handleSubmit2 = () => {
-      form.validateFields().then(values => {
-        if (products.length === 0) {
-          return message.warning("Agrega al menos un producto.");
-        }
-  
-        const invalid = products.some(p => p.width <= 0 || p.length <= 0 || p.price <= 0);
-        if (invalid) {
-          return message.warning("Todos los productos deben tener dimensiones y precios válidos.");
-        }
-  
-        if (generatePDFOption) {
-          console.log("Generar PDF con:", { values, products });
-          message.success("PDF generado.");
-        }
-  
-        if (sendEmailOption) {
-          if (!values.email) {
-            return message.warning("Debes ingresar un correo electrónico.");
-          }
-          console.log("Enviar correo con:", { email: values.email, products });
-          message.success("Correo enviado.");
-        }
-      }).catch(() => {
-        message.error("Faltan campos obligatorios.");
-      });
-    }; 
 
     const handleGeneratePDF = async () => { 
       console.log(" generar PDF!!!!")
@@ -460,8 +501,11 @@ const BudgetForm = ({ work }) => {
         console.log(pendingBudgetData);
         await processBudget(pendingBudgetData);
         message.success("Presupuesto generado correctamente.");
-        form.resetFields();
-        handleCancel(); // o lo que uses para cerrar el form
+
+        // Si el envío fue exitoso:
+        form.resetFields();   // <-- Esto limpia todos los campos
+        // handleCancel();    // o lo que uses para cerrar el form
+        onClose();            // <-- Esto cierra el modal
       } catch (error) {
         console.error("Error al generar PDF:", error);
         message.error("Error al generar el presupuesto.");
@@ -470,18 +514,12 @@ const BudgetForm = ({ work }) => {
         setPendingBudgetData(null);
       }
     };
-    
-    const handleCancelPDF = () => {
-      setShowPDFModal(false);
-      setPendingBudgetData(null);
-    };  
 
     const processBudget = async (budgetData) => {
       let pdfBase64 = null;
       // Si la opción de generar PDF está activada. // Generar PDF y obtener el pdfData (Blob)
       if (generatePDFOption) {
-        console.log(budgetData);
-        console.log("1234... invocando  generatePDF...")
+        console.log("1234... invocando generatePDF...", budgetData)
         pdfBase64  = await generatePDF(budgetData);
       }   
       // Si la opción de enviar por correo está activada. // Enviar por correo si se seleccionó la opción
@@ -489,7 +527,6 @@ const BudgetForm = ({ work }) => {
         await sendPDFToBackend(pdfBase64, budgetData);
 
         // sendEmailWithPDF(pdfData, budgetData);   (envío desde el frontend)  o  sendBudgetEmail(budgetData, pdfBase64);     (envio desde el backend)  
-
         // vrios remitentes:
             /*
             await sendPDFToBackend(pdfBase64, {
@@ -507,12 +544,16 @@ const BudgetForm = ({ work }) => {
               name: 'Presupuesto #124',
             });
             */  
-      }
-    
+      }   
       message.success("Presupuesto guardado y enviado correctamente!");
       form.resetFields();
       handleCancel();
     };   
+    
+    const handleCancelPDF = () => {
+      setShowPDFModal(false);
+      setPendingBudgetData(null);
+    };  
 
     const handlePreviewPDF = () => {
       // lógica para generar el PDF sin enviarlo
@@ -523,259 +564,271 @@ const BudgetForm = ({ work }) => {
     // Función para manejar cambios en las opciones de generar PDF y enviar correo
     const handleGeneratePDFChange = (e) => setGeneratePDFOption(e.target.checked);
     const handleSendEmailChange = (e) => setSendEmailOption(e.target.checked);
+
+    // Calendario
+    // Función que se dispara al hacer click en la celda
+    const handleCellClick1 = (dateTimeFromCell) => {
+      const selectedDate = new Date(dateTimeFromCell.dateStr);    // forzamos a Date nativo
+      console.log('Se hizo click en: ', selectedDate);
+
+      // Formatear la fecha para el input datetime-local (yyyy-MM-ddTHH:mm)
+      const formattedDate = selectedDate.toISOString().substring(0, 16);  // toISOString() genera una fecha como: 2025-04-28T18:30:00.000Z  ; 
+                                                                      // .slice(0,16) te deja justo el formato yyyy-MM-ddTHH:mm que es el que pide el input datetime-local.
+
+      setSelectedDateTime(selectedDate); // Guardás la fecha propuesta
+      setNewQuote(prev => ({ ...prev, visitDate: formattedDate }));
+      setActivePanelKey('2'); // Cambiás al Panel 2
+    };    
+
+    const handleCellClick2 = async (info) => {
+      const start = info.dateStr;
+      const end = new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString(); // duración 1 hora
     
+      const event = {
+        summary: 'Visita Técnica',
+        description: 'Agenda de visita técnica para el cliente',
+        start,
+        end,
+      };
+    
+      try {
+        const response = await fetch('http://localhost:3001/api/calendar/create-event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(event),
+        });
+    
+        const result = await response.json();
+        console.log('Evento creado:', result);
+      } catch (error) {
+        console.error('Error al crear evento:', error);
+      }
+    };   
+    
+    // 🔹 Agendar visita (desde clic en celda vacía)
+    const handleCellClick = async (arg) => {
+      const confirmed = window.confirm(`¿Confirmar visita técnica para el ${arg.dateStr}?`);
+      if (!confirmed) return;
+
+      const selectedStart = new Date(arg.date);
+      const selectedEnd = new Date(selectedStart.getTime() + 60 * 60 * 1000); // 1 hora después
+
+      setNewQuote((prev) => ({
+        ...prev,
+        start: selectedStart.toISOString(),
+        end: selectedEnd.toISOString(),
+      }));
+
+      // Activamos el siguiente panel
+      message.success(`📅 Seleccionaste: ${selectedStart.toLocaleString()}`);
+      setActivePanelKey("2"); // Ir al próximo paso (Datos Generales)
+      alert(`📅 Visita técnica seleccionada para el ${selectedStart.toLocaleString()}. Ahora completa los demás datos.`);
+
+      // Marcar temporalmente la visita que seleccionó el usuario (pero que aún no se confirmó como evento real en Google Calendar)
+      const tempEvent = {
+        id: "temp-visit", // un id único temporal
+        title: "Visita Técnica (pendiente)",
+        start: selectedStart,
+        end: selectedEnd,
+        backgroundColor: "#FFC107", // amarillo (para destacar que está pendiente)
+        borderColor: "#FFC107",
+      };
+      
+      setCalendarEvents((prev) => {
+        // Eliminamos cualquier evento temporal anterior y agregamos el nuevo
+        const filtered = prev.filter((e) => e.id !== "temp-visit");
+        return [...filtered, tempEvent];
+      });      
+    };
+
+    // 🔹 Click sobre un evento existente
+    const handleEventClick = (clickInfo) => {
+      setSelectedEvent({
+        id: clickInfo.event.id,
+        title: clickInfo.event.title,
+        description: clickInfo.event.extendedProps.description || "",
+        start: clickInfo.event.start,
+        end: clickInfo.event.end,
+        backgroundColor: clickInfo.event.backgroundColor || "#1976d2",
+      });
+      setIsModalOpen(true);
+    };
+
+    const toISO = (value) =>
+      typeof value === "string" ? value : value.toISOString();
+
+    // 🔹 Guardar evento (nuevo o editado)
+    const handleSaveEvent = async (eventData) => {
+      const isNew = !eventData.id;
+
+      if (new Date(eventData.end) <= new Date(eventData.start)) {
+        alert("❌ La hora de finalización debe ser posterior a la de inicio.");
+        return;
+      }      
+    
+      try {
+        const url = isNew
+          ? "/api/calendar/create-event"
+          : `/api/calendar/update-event/${eventData.id}`;
+        const method = isNew ? "POST" : "PUT";
+    
+        const response = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            summary: eventData.title,
+            description: eventData.description,
+            start: toISO(eventData.start),
+            end: toISO(eventData.end),
+          }),
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al guardar');
+        }        
+    
+        const result = await response.json();
+    
+        if (isNew) {
+          setCalendarEvents((prev) => [
+            ...prev,
+            { ...eventData, id: result.event.id },
+          ]);
+        } else {
+          setCalendarEvents((prev) =>
+            prev.map((e) => (e.id === eventData.id ? { ...e, ...eventData } : e))
+          );
+        }
+    
+        setIsModalOpen(false);
+        alert(`✅ Evento ${isNew ? "creado" : "actualizado"}`);
+      } catch (error) {
+        console.error(error);
+        alert("❌ No se pudo guardar el evento");
+      }
+    };    
+    
+    // 🔹 Eliminar evento
+    const handleDeleteEvent = async () => {
+      if (!selectedEvent) return;
+    
+      const confirmed = window.confirm(`¿Eliminar evento "${selectedEvent.title}"?`);
+      if (!confirmed) return;
+    
+      try {
+        const res = await fetch(`/api/calendar/delete-event/${selectedEvent.id}`, {
+          method: "DELETE",
+        });
+    
+        if (!res.ok) throw new Error("Error al eliminar");
+    
+        setCalendarEvents((prev) => prev.filter((e) => e.id !== selectedEvent.id));
+        setIsModalOpen(false);
+        alert("✅ Evento eliminado");
+      } catch (err) {
+        console.error(err);
+        alert("❌ Falló la eliminación");
+      }
+    };    
+
+    // 🔹 Mover o redimensionar eventos (arrastrar o cambiar duración)
+    const handleEventDropOrResize = async (info) => {
+      const event = info.event;
+    
+      const updatedEvent = {
+        id: event.id,
+        title: event.title,
+        description: event.extendedProps.description || "",
+        start: event.start,
+        end: event.end || new Date(event.start.getTime() + 60 * 60 * 1000),
+        backgroundColor: event.backgroundColor || "#1976d2",
+      };
+    
+      try {
+        const res = await fetch(`/api/calendar/update-event/${event.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            summary: updatedEvent.title,
+            description: updatedEvent.description,
+            start: updatedEvent.start.toISOString(),
+            end: updatedEvent.end.toISOString(),
+          }),
+        });
+    
+        if (!res.ok) throw new Error("Error al actualizar");
+    
+        alert("✅ Evento actualizado");
+      } catch (err) {
+        console.error(err);
+        alert("❌ No se pudo actualizar el evento");
+        info.revert(); // Revertir movimiento si falla
+      }
+    };      
+
+
+    const handleEditEvent = (event) => {
+      setSelectedEvent({
+        id: event.id,
+        title: event.title,
+        description: event.extendedProps.description || "",
+        start: event.start,
+        end: event.end,
+        backgroundColor: event.backgroundColor || "#1976d2",
+      });
+      setIsModalOpen(true);
+    };          
+     
   return (
     <div>
         <Form form={form} layout="vertical" onFinish={handleSubmit}>    {/* Aquí la invocación automática de handleSubmit */}
           {/* Scroll horizontal en pantallas chicas */}
           <div style={{ overflowX: 'auto' }}>
-            <Collapse defaultActiveKey={['1', '2']} accordion>
-              {/* Datos generales */}
-              <Panel header="Datos Generales del Presupuesto" key="1">
-                <Row gutter={16}>
-                  <Col xs={24} sm={12} md={8}>
-                    <Form.Item 
-                      label="Nombre" 
-                      name="name" 
-                      rules={[
-                                  { required: true, message: 'Por favor ingresa el nombre del presupuesto' },
-                                  { max: 100, message: 'El nombre del presupuesto no puede exceder los 100 caracteres' }
-                              ]}
-                          tooltip="Este es el nombre del presupuesto que se mostrará en el sistema"
-                      >
-                      <Input placeholder="Nombre del presupuesto" />
-                    </Form.Item>
-                  </Col>
+          {/*  <Collapse defaultActiveKey={['1', '2']} accordion>  */}
+          <Collapse activeKey={activePanelKey} onChange={(key) => setActivePanelKey(key)} accordion>
 
-                  <Col xs={24} sm={12} md={8}>
-                    <Form.Item label="Técnico" name="technicianId" rules={[{ required: true, message: 'Selecciona un técnico' }]}>
-                    <Select
-                          showSearch
-                          filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
-                          options={technicians}
-                          loading={loadingProducts}
-                          placeholder="Selecciona un técnico"
-                          style={{ width: '100%' }}
-                    />
-                    </Form.Item>
-                  </Col>
-                </Row>
+            {/* Visit Scheduling Panel */}
+            <Panel header="Agendar Visita Técnica" key="1"> 
+              <SchedulePanel 
+                events={calendarEvents}
+                handleCellClick={handleCellClick}  
+                handleEventClick={handleEventClick} 
+                handleEventDrop={handleEventDropOrResize}
+                handleEventResize={handleEventDropOrResize}
+                handleEditEvent={handleEditEvent}
+              />
+            </Panel>
 
-                <Row gutter={16}>
-                  <Col xs={24} sm={12} md={8}>
-                    <Form.Item label="Dirección" name="address">
-                      <Input placeholder="Dirección" />
-                    </Form.Item>
-                  </Col>
-
-                  <Col xs={24} sm={12} md={8}>
-                    <Form.Item 
-                      label="Email" 
-                      name="email"
-                      rules={[
-                        {
-                          type: 'email',
-                          message: 'Por favor ingresa un correo válido',
-                        },
-                      ]}
-                      tooltip="Correo del cliente para enviar el presupuesto"
-                    >
-                      <Input placeholder="cliente@correo.com" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Row gutter={16}>
-                  <Col span={20}>
-                    <Form.Item label="Descripción" name="description">
-                      <Input.TextArea placeholder="Descripción" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              </Panel>
+            {/* Datos generales */}
+            <Panel header="Datos Generales del Presupuesto" key="2">
+              <GeneralDataPanel
+                form={form}
+                technicians={technicians}
+                loadingProducts={loadingProducts}
+                newQuote={newQuote}
+                setNewQuote={setNewQuote}
+              />
+            </Panel>
               
-              {/* Productos */}
-              <Panel header="Productos Seleccionados" key="2">
-                {/* Aquí todo lo relacionado a productos, addProduct, subtotal, total, etc */}
-                <h3>Seleccionar Producto</h3>
-                {products.map((product, index) => (
-                  //<div key={index} style={{ marginBottom: 24 }}>   sección de productos sea scrollable en pantallas chicas:
-                  <div style={{ overflowX: 'auto' }}>  
-                    {/*<Row gutter={16} align="middle">*/}
-                    {/*<Row gutter={16} wrap={false} style={{ minWidth: 800 }}>*/}
-                    <Row gutter={16} key={index} style={{ minWidth: 800, marginBottom: 16 }}>
-                      {/* Producto y otros controles */}
-                      <Col span={5}>
-                          <Form.Item label="Producto" required>
-                              <Select
-                                  showSearch
-                                  filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
-                                  // value={{ label: product.productId, value: product.productId }}
-                                  // value={product.productId}
-                                  onChange={(value) => handleProductChange(index, 'productId', value)}             // Actualiza el productId
-                                  options={availableProducts}
-                                  loading={loadingProducts}
-                                  placeholder="Seleccione un producto"
-                                  style={{ width: "100%" }}
-                              />
-                          </Form.Item>
-                      </Col>  
-
-                      {/* Nueva disposición más cómoda para cantidad, ancho, largo, descuento, y precio */}
-                      <Col span={2}>
-                        <Form.Item label="Cantidad">
-                          <InputNumber
-                            value={product.quantity}
-                            onChange={(value) => handleProductDetailChange(index, 'quantity', value)} // Eso modifica el producto en la lista → se actualiza products → se dispara el useEffect → se recalcula subtotal y totales automáticamente.
-                            min={1}
-                            style={{ width: "100%" }}
-                            // disabled={!cantidadHabilitado}
-                            disabled={!(product.habilitado && product.habilitado.quantityC)}
-                          />
-                        </Form.Item>
-                      </Col>
-
-                      <Col span={3}>
-                        <Form.Item label="Ancho (m)">
-                          <InputNumber
-                            value={product.width}
-                            onChange={(value) => handleProductDetailChange(index, 'width', value)}
-                            min={0}
-                            style={{ width: "100%" }}
-                            addonAfter={'mts'}
-                            // disabled={!anchoHabilitado}
-                            disabled={!(product.habilitado && product.habilitado.widthC)}
-                          />
-                        </Form.Item>
-                      </Col>
-
-                      <Col span={3}>
-                        <Form.Item label="Largo (m)">
-                          <InputNumber
-                            value={product.length}
-                            onChange={(value) => handleProductDetailChange(index, 'length', value)}
-                            min={0}
-                            style={{ width: "100%" }}
-                            addonAfter={'mts'}
-                            // disabled={!largoHabilitado}
-                            disabled={!(product.habilitado && product.habilitado.lengthC)}
-                          />
-                        </Form.Item>
-                      </Col>
-
-                      <Col span={3}>
-                        <Form.Item label="Precio / m²" required>
-                          <InputNumber
-                            // value={`${product.price} ${product.currency === 'USD' ? 'USD' : 'UYU'}`} // Muestra la moneda
-                            value={product.price}
-                            onChange={(value) => handleProductDetailChange(index, 'price', value)}    // Este es el caso si quieres que el precio sea editable
-                            min={0}
-                            style={{ width: "100%" }}
-                            // disabled={true}  // Dejarlo como "true" si no quieres que el usuario lo modifique, pero lo mantienes actualizado.
-                            addonAfter={product.currency === 'USD' ? 'USD' : 'UYU'}
-                            // disabled={!precioHabilitado}
-                            disabled={!(product.habilitado && product.habilitado.priceC)}
-                          />
-                        </Form.Item>
-                      </Col>
-
-                      <Col span={3}>
-                        <Form.Item label="Desc. (%)">
-                          <InputNumber
-                            value={product.discount}
-                            onChange={(value) => handleProductDetailChange(index, 'discount', value)}
-                            min={0}
-                            max={100}
-                            style={{ width: "100%" }}
-                            addonAfter={'%'}
-                            // disabled={!descuentoHabilitado}
-                            disabled={!(product.habilitado && product.habilitado.discountC)}
-                          />
-                        </Form.Item>
-                      </Col>
-
-                      <Col span={4}>
-                          <Form.Item label="Subtotal">
-                              <Input
-                                  value={product.subtotal} 
-                                  disabled
-                                  style={{ width: '100%' }}
-                                  addonAfter={product.currency === 'USD' ? 'USD' : 'UYU'}
-                              />
-                          </Form.Item>
-                      </Col>
-
-                      {/* Botón de eliminar producto */}
-                      <Col span={1} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <Button
-                          icon={<DeleteOutlined />}
-                          danger
-                          onClick={() => removeProduct(index)}
-                          shape="circle"
-                          style={{ marginTop: 24 }}
-                        />
-                      </Col>
-                    </Row>
-                  </div>
-                ))}
-
-                {/* Botón para agregar producto */}
-                <Row justify="end" style={{ marginTop: 16 }}>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={addProduct}
-                    style={{
-                      backgroundColor: '#4CAF50',
-                      borderColor: '#4CAF50',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    Agregar Producto
-                  </Button>
-                </Row>
-
-                <Row gutter={16} style={{ marginTop: 10 }}>
-                  {/* Total en USD */}
-                  <Col span={6}>
-                    <label style={{ fontWeight: '500' }}><strong>Total (USD)</strong></label>
-                    <Input
-                      value={totals.USD.toFixed(2)}    // totalUSD
-                      disabled
-                      addonBefore="$"
-                      style={{
-                        width: '100%',
-                        textAlign: 'right',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        backgroundColor: '#f5f5f5',
-                        borderColor: '#4CAF50',
-                      }}
-                    />
-                  </Col>
-
-                  {/* Total en UYU */}
-                  <Col span={6}>
-                    <label style={{ fontWeight: '500' }}><strong>Total (UYU)</strong></label>
-                    <Input
-                      value={totals.UYU.toFixed(2)}   // totalUYU
-                      disabled
-                      addonBefore="$U"
-                      style={{
-                        width: '100%',
-                        textAlign: 'right',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        backgroundColor: '#f5f5f5',
-                        borderColor: '#2196F3',
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </Panel>
+             {/*ProductsPanel */}
+             
+             <Panel header="Productos Seleccionados" key="3">
+              <ProductsPanel
+                products={products}
+                availableProducts={availableProducts}
+                handleProductChange={handleProductChange}
+                handleProductDetailChange={handleProductDetailChange}
+                removeProduct={removeProduct}
+                addProduct={addProduct}
+                totals={totals}
+              />
+            </Panel>
               
               {/* Opciones adicionales */}
-              <Panel header="Opciones Adicionales" key="3">
+              <Panel header="Opciones Adicionales" key="4">
 
                 {/* Opciones de generar PDF y enviar por correo */}
                 <Row gutter={16} style={{ marginTop: 20 }}>
@@ -798,7 +851,11 @@ const BudgetForm = ({ work }) => {
                     </Form.Item>
                   </Col>
                 </Row>
+              </Panel>
 
+              {/* Resumen del Presupuesto */}
+              <Panel header="Resumen del Presupuesto" key="5">
+                <ResumenPanel products={products} totals={totals} newQuote={newQuote} />
               </Panel>
 
                 {/* Tasa de cambio 
@@ -826,9 +883,9 @@ const BudgetForm = ({ work }) => {
               </Button>
 
               <Button type="primary" htmlType="submit" 
-              // onClick={showConfirmationModal} 
-              onClick={() => {setShowPDFModal(); }} 
-              icon={loading ? <LoadingOutlined /> : <PlusOutlined />} 
+                // onClick={showConfirmationModal} 
+                onClick={() => {setShowPDFModal(); }} 
+                icon={loading ? <LoadingOutlined /> : <PlusOutlined />} 
                 size="large" style={{ width: "120px" }}>
                 {loading ? 'Cargando' : 'Presupuestar'}
               </Button>
@@ -858,6 +915,15 @@ const BudgetForm = ({ work }) => {
       >
         <p>¿Desea generar y descargar el presupuesto en PDF?</p>
       </Modal>
+
+      {/* Agregás el modal al final */}
+      <EventModal
+        open={isModalOpen}
+        event={selectedEvent}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
+      />
 
     </div>
     );
