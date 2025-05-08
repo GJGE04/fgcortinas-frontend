@@ -26,7 +26,8 @@ import { calculateSubtotal } from "../utils/calculos";
                                             // 2. Cuando querés evitar warnings como el que estás viendo, porque React puede "saber" si esa función cambió o no.
 
 import "../css/CalendarioVisitas.css";
-import esLocale from '@fullcalendar/core/locales/es';                                       
+import esLocale from '@fullcalendar/core/locales/es';        
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';                               
 
 const { Panel } = Collapse;
 
@@ -189,7 +190,7 @@ const BudgetForm = ({ work, onClose }) => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch("/api/calendar/events");
+        const res = await fetch(`${API_URL}/calendar/events`);  
         const data = await res.json();
   
         const formattedEvents = data.events.map((event) => ({
