@@ -5,8 +5,7 @@ import logo from '../assets/logo.png'; // ⚠️ ajustá la ruta al logo. asegur
 import QRCode from 'qrcode';
 
 export const generatePDF = async (budgetData) => {
-    console.log("Generando pdf del presupuesto........");
-    console.log(budgetData);
+    console.log("Generando pdf del presupuesto........", budgetData);
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 

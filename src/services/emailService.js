@@ -90,6 +90,24 @@ export const sendBudgetEmail = async (budgetData, pdfBase64) => {
   return response.data;
 };
 
+const sendBudgetEmail3 = async ({ to, subject, body, attachment, filename }) => {
+  return fetch("/api/budget/send-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to,
+      subject,
+      body,
+      attachment, // base64 del PDF
+      filename,
+    }),
+  }).then((res) => {
+    if (!res.ok) throw new Error("Error al enviar el correo");
+    return res.json();
+  });
+};
+
+
 export const sendPDFToBackend = async (pdfBase64, budgetData) => {
     // 1. Convertir base64 a Blob
     const base64ToBlob = (base64Data) => {

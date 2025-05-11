@@ -1,0 +1,57 @@
+/* layout.css */
+/* Scroll personalizado solo para el contenido al agregar la segunda parte */
+.scrollable-content {
+    height: calc(100vh - 112px); /* Ajusta si tu Header tiene otra altura */  /* luego se Elimina la altura fija */
+    /* flex: 1; /* Esto permite que el contenido se expanda pero sin forzar scroll */
+    overflow-y: auto;
+    margin: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+
+    scrollbar-width: thin;                /* Firefox */
+    scrollbar-color: #D32F2F #f0f0f0; /* Firefox */
+  }
+
+  /* Scroll para navegadores WebKit (Chrome, Edge, Safari) */
+.scrollable-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+  background-color: #D32F2F;
+  border-radius: 10px;
+  border: 2px solid #f0f0f0; /* Espaciado para que se vea más suave */
+}
+
+/* Adaptar layout a móviles */
+@media (max-width: 768px) {
+  .scrollable-content {
+    height: calc(100vh - 140px);  /* Aumentamos un poco el espacio para headers en móviles */
+    margin: 10px;
+    padding: 10px;
+    border-radius: 0;
+  }
+
+  .ant-layout-sider {
+    display: none; /* Ocultar menú lateral en pantallas pequeñas */
+  }
+
+  .ant-layout-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .ant-layout-header button {
+    font-size: 12px !important;
+    padding: 4px 10px;
+  }
+}
+
+  

@@ -11,8 +11,9 @@ import "../css/CalendarioVisitas.css";
 import { useEffect } from "react";
 import { useMediaQuery } from "@mui/material";
 import { getTechnicians, getClients } from "../services/apiService"; 
+import { getScheduledVisits } from "../services/apiService";
 
-export default function CalendarioVisitas() {
+export default function CalendarioVisitas() { /*
   const [citas, setCitas] = useState([
     {
       id: "1",
@@ -26,7 +27,43 @@ export default function CalendarioVisitas() {
       },
       color: "#1976D2",
     }
-  ]);
+  ]); */
+
+  const [citas, setCitas] = useState([]);
+
+  // traer los datos reales del backend:
+  useEffect(() => {
+    const fetchScheduledVisits = async () => {
+      try {
+        const eventosAPI = await getScheduledVisits();
+  
+        // Destacar visualmente los eventos según su origen (por ejemplo, si fueron "Agendados desde el formulario completo"), 
+        // podés usar un color distinto basándote en el campo description.
+        const eventosTransformados = eventosAPI.map((ev, i) => {
+          const descripcion = ev.description || "";
+          const esFormularioCompleto = descripcion.includes("formulario completo");
+
+          return {
+            id: ev.id || String(i),
+            title: ev.summary || "Evento sin título",
+            start: ev.start?.dateTime,
+            end: ev.end?.dateTime,
+            extendedProps: {
+              description: descripcion,
+              creator: ev.creator?.email || "",
+            },
+            color: esFormularioCompleto ? "#4CAF50" : "#1976D2", // Verde si viene del formulario completo
+          };
+        });
+  
+        setCitas(eventosTransformados);
+      } catch (error) {
+        console.error("Error al cargar eventos:", error);
+      }
+    };
+  
+    fetchScheduledVisits();
+  }, []);    
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -46,7 +83,7 @@ export default function CalendarioVisitas() {
   const [clients, setClients] = useState([]);
 
   // Cargar técnicos y clientes desde la base de datos
-  useEffect(() => {
+ /* useEffect(() => {
 
     const fetchData = async () => {
       try{
@@ -95,7 +132,7 @@ export default function CalendarioVisitas() {
       .catch(error => {
         console.error("Error al obtener clientes", error);
       });  */
-  }, []);
+ // }, []); */
 
   const handleDateClick = (info) => {
     setModoEdicion(false);
@@ -224,7 +261,7 @@ export default function CalendarioVisitas() {
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="p-4">
         <Typography variant="h4" mb={2}>
-          Calendario de Visitas
+          Calendario de VisitasA
         </Typography>
 
         <FullCalendar
@@ -355,3 +392,75 @@ export default function CalendarioVisitas() {
     </LocalizationProvider>
   );
 }
+
+// Tener un endpoint como /api/visitas o similar que devuelva todas las visitas técnicas agendadas. Por ejemplo:
+/*
+GET /api/visitas
+
+[
+  {
+    "_id": "123",
+    "clienteNombre": "Pepe",
+    "tecnicoNombre": "Juan Pérez",
+    "tipo": "Presupuesto",
+    "inicio": "2025-05-09T14:00:00Z",
+    "fin": "2025-05-09T15:00:00Z",
+    "direccion": "Av. Rivera 123"
+  }
+]
+
+useEffect(() => {
+  const fetchScheduledVisits = async () => {
+    try {
+      const data = await getScheduledVisits();
+
+      const mappedEvents = data.map(event => ({
+        id: event._id,
+        title: `${event.tipo} - ${event.clienteNombre}`,
+        start: event.inicio,
+        end: event.fin,
+        extendedProps: {
+          tecnicoNombre: event.tecnicoNombre,
+          tipo: event.tipo,
+          direccion: event.direccion
+        },
+        color: event.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F"
+      }));
+
+      setCitas(mappedEvents);
+    } catch (error) {
+      console.error("Error al cargar eventos:", error);
+    }
+  };
+
+  fetchScheduledVisits();
+}, []);
+
+v.2  -  sin personalizacion de colores
+useEffect(() => {
+    const fetchScheduledVisits = async () => {
+      try {
+        const eventosAPI = await getScheduledVisits();
+  
+        const eventosTransformados = eventosAPI.map((ev, i) => ({
+          id: ev.id || String(i),
+          title: ev.summary || "Evento sin título",
+          start: ev.start?.dateTime,
+          end: ev.end?.dateTime,
+          extendedProps: {
+            description: ev.description || "",
+            creator: ev.creator?.email || "",
+          },
+          color: "#1976D2", // o ajustalo según tipo
+        }));
+  
+        setCitas(eventosTransformados);
+      } catch (error) {
+        console.error("Error al cargar eventos:", error);
+      }
+    };
+  
+    fetchScheduledVisits();
+  }, []); 
+
+  */

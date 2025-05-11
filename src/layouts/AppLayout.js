@@ -5,6 +5,7 @@ import { Menu, Layout, Button, Avatar, Dropdown, Modal, Spin } from "antd";
 
 // import { HomeOutlined, AppstoreOutlined, ShoppingCartOutlined, SettingOutlined } from "@ant-design/icons";
 // import Footer from "../components/Footer"; // Importa el Footer (v1)
+import "../css/layout.css";
 import AppFooter from "../components/Footer"; // Importa el Footer mejorado
 import { 
     HomeOutlined, 
@@ -19,6 +20,7 @@ import {
     SettingOutlined,
     DollarOutlined,
     // FileTextOutlined
+    MenuOutlined
   } from "@ant-design/icons";
 
 import logo from "../assets/logo.png"; // Asegúrate de que la ruta del logo sea correcta
@@ -27,7 +29,6 @@ import { getUserRole, isAuthenticated, getUsername } from '../services/authServi
 const { Header, Sider, Content } = Layout;
 
 // const role = localStorage.getItem('role');
-
 // const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const AppLayout = ({ children }) => {
@@ -37,6 +38,16 @@ const AppLayout = ({ children }) => {
   const [userRole, setUserRole] = useState(null); // Estado para almacenar el rol del usuario
   const [isLoading, setIsLoading] = useState(true); // Estado de carga mientras obtenemos el rol
   const [username, setUsername] = useState("");
+
+  // const showFooter = ["/dashboard", "/otra-pagina"].includes(location.pathname);
+  // ✅ Lista de rutas donde el footer siempre debe mostrarse, incluso si el usuario está logueado
+  const footerVisibleRoutes = ["/dashboard", "/login", "/", "/nosotros"];
+
+  // ✅ Se evalúa si la ruta actual está en la lista
+  // const showFooter = footerVisibleRoutes.includes(location.pathname);
+  const showFooter = footerVisibleRoutes.some(route => location.pathname.startsWith(route));
+
+
 /*
   // Verificar el rol al cargar el componente
   useEffect(() => {
@@ -167,18 +178,27 @@ const AppLayout = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout style={{ minHeight: "100vh" }}>   {/* style={{ flex: 1 }} */}
       {/* Menú lateral */}
       {/* Menú lateral solo si la ruta no es login, register o welcome */}
       {showSider && (
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} style={{ background: "#D32F2F" }}>
+      <Sider 
+        breakpoint="md"
+        collapsedWidth={0}  // "0"
+        collapsible 
+        collapsed={collapsed} 
+        // onCollapse={setCollapsed} 
+        onCollapse={(val) => setCollapsed(val)}
+        style={{ background: "#D32F2F" }}
+      >
       <div className="logo" style={{ color: "white", textAlign: "center", padding: "20px", fontSize: "20px" }}>
           {/* Logo en el Sidebar */}
           <img src={logo} alt="Logo" style={{ width: "120px", marginBottom: "10px" }} /> {/* Aumenté el tamaño del logo */}
           <div style={{ fontSize: "24px" }}>FG Cortinas</div> {/* Aumenté el tamaño de la fuente */}
         </div>
-        <Menu theme="dark" mode="inline" defaultSelectedKeys={["1"]}>
-
+        <Menu theme="dark" mode="inline" defaultSelectedKeys={["1"]} onClick={() => {
+          if (window.innerWidth < 768) setCollapsed(true);
+        }}>
           <Menu.Item key="1" icon={<HomeOutlined />}>
             <Link to="/dashboard">Inicio</Link>
           </Menu.Item>
@@ -241,14 +261,24 @@ const AppLayout = ({ children }) => {
                 <Link to="/perfil">Mi Perfil</Link>
               </Menu.Item>
             )}  */}
-
+            
         </Menu>
       </Sider>
       )}
 
       <Layout>
         {/* Barra de navegación superior */}
-        <Header style={{ background: "#D32F2F", padding: "0 20px", color: "white", fontSize: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative" }}>  {/* 👈 importante para centrar realmente el título */}
+        <Header style={{ 
+          background: "#D32F2F", 
+          padding: "10px 20px", // padding: "0 20px",
+          color: "white", 
+          fontSize: "24px", 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center", 
+          position: "relative",
+          flexWrap: "wrap" 
+          }}>  {/* 👈 importante para centrar realmente el título */}
         
         {/* Izquierda: Bienvenida con ícono */}
  {/*         <div style={{ minWidth: "220px", textAlign: "left", fontSize: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -291,6 +321,16 @@ const AppLayout = ({ children }) => {
               )}
             </div>
           </Dropdown>
+
+          {!showSider && (
+            <Button
+              type="text"
+              icon={<MenuOutlined style={{ fontSize: "24px", color: "white" }} />}
+              onClick={() => setCollapsed(false)}
+              style={{ display: "block", marginRight: "auto" }}
+            />
+          )}
+
 
         {/* Centro: Texto centrado absolutamente */}
           <div
@@ -411,12 +451,25 @@ const AppLayout = ({ children }) => {
         </Header>
 
         {/* Contenido de la página */}
-        <Content style={{ margin: "20px", padding: "20px", background: "white", borderRadius: "10px" }}>
+        {/*<Content style={{ margin: "20px", padding: "20px", background: "white", borderRadius: "10px", 
+        // Ajusta según la altura de Header. Version del scroll sin usar css
+        //  height: "calc(100vh - 112px)",    //  → ajusta el alto para ocupar el resto de la pantalla quitando la altura del header (usa 112px o el valor real de tu header).
+        //  overflowY: "auto"                 //  → habilita el scroll solo en el contenido.
+        // }}> 
+        //</Layout>  {children} 
+        //</Content> */}
+
+        {/* version del scroll usando css */}   {/* style={{ flex: 1 }} */}
+        <Content className="scrollable-content" style={{ flex: 1, overflowY: "auto" }}>
           {children}
         </Content>
+          
 
         {/* Footer siempre visible */}
-        <AppFooter />
+        {/*<AppFooter /> */}
+
+        {/* Footer solo visible si NO hay usuario logueado */}
+        {(!userRole || showFooter) && <AppFooter />}
       </Layout>
     </Layout>
   );

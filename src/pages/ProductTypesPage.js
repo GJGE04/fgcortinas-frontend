@@ -331,7 +331,7 @@ const ProductTypesPage = () => {
         columns={columns}
         dataSource={filteredData} // Usa los datos filtrados
         rowKey="_id"
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 20 }}
         onChange={handleTableChange} // Agregado para manejar la ordenación
         style={{ marginTop: 20 }}
       />

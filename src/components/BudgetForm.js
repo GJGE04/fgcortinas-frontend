@@ -17,32 +17,72 @@ import EventModal from './BudgetForm/EventModal';
 
 import { getProducts } from "../api/productApi"; 
 import { getTechnicians } from "../services/apiService";  
-import { sendPDFToBackend } from "../services/emailService"; 
+
 import { generatePDF } from '../services/pdfService'; // ajustá la ruta si es necesario
+import { sendPDFToBackend } from "../services/emailService"; 
+import { createBudget } from "../services/budgetService";
+// import { sendWhatsAppMessage } from '../services/whatsappService';
 import { calculateSubtotal } from "../utils/calculos";  
+
 // import { useCallback } from "react";    // useCallback es un hook de React que te permite memorizar una función, es decir, evitar que se cree una nueva versión de esa función en cada render. 
                                         // Esto es útil en dos casos principales:
                                             // 1. Cuando pasás funciones como props a componentes hijos que dependen de referencialidad (optimización).
                                             // 2. Cuando querés evitar warnings como el que estás viendo, porque React puede "saber" si esa función cambió o no.
 
 import "../css/CalendarioVisitas.css";
-import esLocale from '@fullcalendar/core/locales/es';        
+// import esLocale from '@fullcalendar/core/locales/es';        
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';                               
 
 const { Panel } = Collapse;
 
-const clientId = '624383334135-n745f2bncl6ucgsmnls4hlvujmmohk51.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
+// const clientIdgoogle = '624383334135-n745f2bncl6ucgsmnls4hlvujmmohk51.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
 
 // Inicializamos EmailJS con tu Public Key (User ID)
 // emailjs.init('G10RHxIwl7yP1iew5');  // Aquí va tu public key
 
 const BudgetForm = ({ work, onClose }) => {
-    // Verifica que work no sea undefined
+  const [form] = Form.useForm();
+  
+  const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  // 1. Estado global para budgetData
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [pendingBudgetData, setPendingBudgetData] = useState(null);
+
+  // Opciones seleccionadas por el usuario
+  const [generatePDFOption, setGeneratePDFOption] = useState(false);  // true
+  const [sendEmailOption, setSendEmailOption] = useState(false);      // true
+  // const [sendWhatsAppOption, setSendWhatsAppOption] = useState(false);
+
+  // Row Productos
+  const [products, setProducts] = useState([{ productId: "", quantity: 1, width: 0, length: 0, price: 0, discount: 0, subtotal: 0, format: null, currency: '',  // 👍 Ya bien seteado
+    habilitado: { quantityC: false, widthC: false, lengthC: false, priceC: false, discountC: false},
+   }]);
+  //const [totalUSD, setTotalUSD] = useState(0);
+  //const [totalUYU, setTotalUYU] = useState(0);
+  const [totals, setTotals] = useState({ USD: 0, UYU: 0 });
+  
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [technicians, setTechnicians] = useState([]); 
+
+   // Al principio de tu componente, nuevos estados:
+   const [calendarEvents, setCalendarEvents] = useState([]);
+   const [selectedEvent, setSelectedEvent] = useState(null);
+   const [isModalOpen, setIsModalOpen] = useState(false);
+
+     // Estados necesarios
+  const [activePanelKey, setActivePanelKey] = useState(1); // 1 = Panel 1, 2 = Panel 2
+  const [selectedDateTime, setSelectedDateTime] = useState('');
+  const [newQuote, setNewQuote] = useState({
+    visitDate: "",
+    // podés agregar más campos si los necesitás
+  });
+
+  // Verifica que work no sea undefined
   console.log("work en BudgetForm:", work);  
   const workId = work ? work._id : null;     // Aquí accedes al ID del trabajo
-  const clienteId = work ? work.cliente._id : null;
-  const clienteName = work ? work.cliente.nombre : null;
-  console.log("ID del trabajo:", workId); console.log("ID del cliente:", clienteId);
+  const client = work?.cliente ? { id: work.cliente._id, name: work.cliente.nombre } : null;
+  // console.log("ID del trabajo:", workId); console.log("ID del cliente:", clienteId);
 
   // Asegúrate de que workId no sea undefined antes de intentar usarlo
   if (!workId) {
@@ -50,38 +90,10 @@ const BudgetForm = ({ work, onClose }) => {
     console.error("No se encontró el ID del trabajo");
   }
 
-  const [form] = Form.useForm();
-  const [products, setProducts] = useState([{ productId: "", quantity: 0, width: 0, length: 0, price: 0, discount: 0, subtotal: 0, format: null, currency: '',
-    habilitado: { quantityC: false, widthC: false, lengthC: false, priceC: false, discountC: false},
-   }]);
-  //const [totalUSD, setTotalUSD] = useState(0);
-  //const [totalUYU, setTotalUYU] = useState(0);
-  const [totals, setTotals] = useState({ USD: 0, UYU: 0 });
-  const [loading, setLoading] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [availableProducts, setAvailableProducts] = useState([]);
-  const [technicians, setTechnicians] = useState([]);  // Técnicos
-
-  const [generatePDFOption, setGeneratePDFOption] = useState(false);
-  const [sendEmailOption, setSendEmailOption] = useState(false);
-  
-  // 1. Estado global para budgetData
-  const [showPDFModal, setShowPDFModal] = useState(false);
-  const [pendingBudgetData, setPendingBudgetData] = useState(null);
-
-  // Al principio de tu componente, nuevos estados:
-  const [calendarEvents, setCalendarEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-
-  // Estados necesarios
-  const [activePanelKey, setActivePanelKey] = useState(1); // 1 = Panel 1, 2 = Panel 2
-  const [selectedDateTime, setSelectedDateTime] = useState('');
-  const [newQuote, setNewQuote] = useState({
-    visitDate: "",
-    // podés agregar más campos si los necesitás
-  });
+  // Técnicos
+  // En BudgetForm.jsx
+  // const [description, setDescription] = useState('');
+  // const [client, setClient] = useState(null); // o cliente ya cargado
 
   // Función para calcular los subtotales y el total de todos los productos. // ✅ Función memorizada para evitar warning en useEffect
   /*const calculateTotals = useCallback((productsList = products) => {   // ✅ ¿Cómo evitar que React lo considere “nueva” cada vez?
@@ -211,12 +223,20 @@ const BudgetForm = ({ work, onClose }) => {
   
     fetchEvents();
   }, []);
+
+  /* agregar temporalmente esto en el componente principal para depurar. Form.useWatch("description", form) para inspeccionar si description realmente cambia
+  const watchedDescription = Form.useWatch('description', form);
+  useEffect(() => {
+    console.log("👀 description actualizado:", watchedDescription);
+  }, [watchedDescription]);
+*/
   
 
   // ✅ Manejo de cambios por campo. // Función para manejar los cambios en los valores de cantidad, ancho, largo, descuento
   // ✅ Paso 1: Cada vez que cambiás un campo de un producto, actualizás el estado
   const handleProductDetailChange = (index, field, value) => {    // Cuando cambia un detalle del producto
     console.log('Entrando en handleProductDetailChange:');
+    const safeValue = field === 'quantity' ? Math.max(1, value || 1) : value;
 
     // Crea una copia del estado de productos
  /*   const updatedProducts = [...products];
@@ -236,7 +256,7 @@ const BudgetForm = ({ work, onClose }) => {
       // Actualizar el campo cambiado
       updatedProducts[index] = {
         ...updatedProducts[index],
-        [field]: value
+        [field]: value    // = safeValue
       };
 
       // Calcular el nuevo subtotal
@@ -393,142 +413,253 @@ const BudgetForm = ({ work, onClose }) => {
     onClose();
   };
 
-    const handleSubmit = async (values) => {
-      console.log("Ejecutando handleSubmit...");  
-      console.log ("Values: " , values);        // Asegúrate de recibir los valores correctamente
-      
-      try {
-        // 🔍 Validación de visita técnica. // Verificamos que tenga fecha/hora
-        if (!newQuote.start || !newQuote.end) {
-          message.error("Debes seleccionar una fecha y hora para la visita.");
-          alert("❗ Debes agendar una visita técnica antes de continuar.");
-          return;
-        }
-
-        // Crear evento en Google Calendar
-        const eventData = {
-          summary: 'Visita técnica',    // summary: `Visita técnica - ${clientName}`,
-          description: 'Agendada desde el formulario completo de FG Cortinas',    
-          // description: `Visita técnica agendada para el cliente: ${clientName}, atendida por el técnico: ${technicianName}.`,
-          // description: `Visita técnica para el cliente ${values.nombreCliente || 'sin nombre'}`,
-          start: newQuote.start,
-          end: newQuote.end,
-        };
-    
-        const result = await axios.post('/api/calendar/create-event', eventData);
-        console.log('✅ Evento agendado:', result.data);
-    
-      } catch (error) {
-        console.error('❌ Error al agendar visita:', error);
-        message.error('No se pudo agendar la visita técnica');
-        return; // Evitamos continuar si falla
-      }
-      
-      // continuar con guardar presupuesto, generar PDF, etc...
-        
-      try{
-        // Recopilamos todos los datos del formulario
+  const handleSubmit = async (values) => {
+    // Recopilamos todos los datos del formulario
         // const { name, address, description, technicianId } = values;
-        const {name} = values;
+        //const {name} = values;
+       // console.log ("Tecnicos: " , technicians); 
+        //console.log(name);
+        //console.log ("VALUES: " , values); 
 
-        console.log ("Tecnicos: " , technicians); 
-        console.log(name);
-        console.log ("VALUES: " , values); 
-
-          const tecnicoSeleccionadoId = form.getFieldValue('technicianId');
-          const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
-          const tecnicoName = tecnicoSeleccionado?.label || 'Sin técnico';
-          console.log("Tecnico: " , tecnicoName);
-
-          if (products.length === 0 || products.some(p => !p.productId)) {
-            console.error("Debe agregar al menos un producto válido al presupuesto.");
-            message.warning("Debe agregar al menos un producto válido al presupuesto.");
-            // setLoading(false);
-            return;
-          }      
-          // if (loading) return;
-          // setLoading(true);
-
-          const budgetData = {
-            ...values,
-            products,
-            totals: {
-              UYU: (totals.UYU && !isNaN(totals.UYU)) ? totals.UYU.toFixed(2) : '0.00',   // totalUYU,
-              USD: (totals.USD && !isNaN(totals.USD)) ? totals.USD.toFixed(2) : '0.00',   // totalUSD,
-            }, 
-            clienteName,
-            tecnicoName,
-            // 🔹 Agregamos la visita técnica
-            visita: {
-              start: newQuote.start,
-              end: newQuote.end,
-            },
-          };
-
-          console.log("📦 Datos del presupuesto:", budgetData);
-          console.log(showPDFModal);
-          // Mostramos modal de confirmación
-          setPendingBudgetData(budgetData);   // Guardamos fuera del scope
-          setShowPDFModal(true);              // Mostramos el modal
-
-          // Enviás a tu backend:
-          await fetch("/api/budgets/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(budgetData),
-          });
-
-          alert("✅ Presupuesto creado correctamente");
-          // Opcional: resetear el formulario
-
-          message.success("✅ Visita agendada y presupuesto listo");
+    console.log("🟢 Entrando en handleSubmit con valores:", values);  // Acá deberías ver description
+    console.log("✅ Formulario válido. Procesando datos...");  
+    // console.log("🔍 Antes de validación, descripción:", values.description); 
+    console.log("🧪 Campos del formulario:", form.getFieldsValue());
+    // console.log("🧪 descriptionTest:", values.descriptionTest);
   
-        } catch (error) {
-          console.error('❌ Error al preparar el presupuesto:', error);
-          message.error('Error al generar el presupuesto'); // Opcional: mensaje de error
-          alert("❌ Falló la creación del presupuesto");
-        }
+    // 1. Validación general...
+    // 1.1 🔍 Validar que haya visita técnica. // Verificamos que tenga fecha/hora
+    if (!newQuote.start || !newQuote.end) {
+      message.error("Debes seleccionar una fecha y hora para la visita.");
+        // alert("❗ Debes agendar una visita técnica antes de continuar.");
+      return;
+    }
 
-        message.success("Visita agendada y presupuesto registrado con éxito");
-        // Aquí podrías enviar el presupuesto completo también
+    // 1.2 Asegurar descripción
+    if (!values.description || values.description.trim() === "") {
+      values.description = "Sin descripción";
+      console.log("⚠️ Descripción estaba vacía, se reemplazó");
+    }
+
+    // const descripcionFinal = values.description?.trim() || "Sin descripción4";
+    // console.log("descripcionFinal:", descripcionFinal);
+  
+    // 1.3 Validación de productos
+    if (products.length === 0 || products.some(p => !p.productId)) {
+      message.warning("Debe agregar al menos un producto válido al presupuesto.");
+        console.error("Debe agregar al menos un producto válido al presupuesto.");
+      return;
+    }
+
+    // 1.4 Reforzar cantidad mínima en productos. Asegurar que los productos tengan cantidad >= 1
+    const productosValidados = products.map(p => ({
+      ...p,
+      quantity: p.quantity >= 1 ? p.quantity : 1
+    }));
+  
+    try {
+      // 2. Crear evento en Google Calendar
+      await createCalendarEvent(newQuote);
+
+      // continuar con guardar presupuesto, generar PDF, etc...
+  
+      // 3. Armar el presupuesto completo
+      console.log ("VALUES: " , values);
+      // const budgetData = buildBudgetData(values);
+      const budgetData = buildBudgetData({
+        ...values,
+        products: productosValidados,
+      });
+      console.log("📦 Datos del presupuesto:", budgetData);
+  
+      // 4. Guardar presupuesto en la base de datos
+      // const savedBudget = await handleSaveBudget(budgetData);
+      // alert("✅ Presupuesto creado correctamente");
+      await handleSaveBudget(budgetData);   
+      // Opcional: resetear el formulario
+  
+      // 5. Guardar en estado para usarlo en el PDF
+      // setPendingBudgetData(savedBudget);
+      setPendingBudgetData(budgetData);   // ó  setPendingBudgetData(savedBudget);
+  
+      // 6. Mostrar modal de confirmación o ejecutar directamente
+      // ✅ Mostrar modal solo si se marcó el checkbox
+      if (generatePDF) {
+        setShowPDFModal(true);      // 🔸 Muestra el modal de confirmación. // Abrimos modal o continuamos directo con processBudget
+      } else {
+        message.success("Presupuesto guardado correctamente.");   // 🔸 Guarda directo sin PDF
+        onClose?.(); // o lo que uses para cerrar
+      }
+  
+      message.success("✅ Visita agendada y presupuesto listo y registrado con éxito");
+      // handleCancel(); // cerrar formulario
+    } catch (error) {
+      console.error("❌ Error en handleSubmit al enviar formulario:", error);
+      message.error("Ocurrió un error al procesar el presupuesto.");
+      alert("❌ Falló al guardar el presupuesto.");
+    }
+  };
+
+  const createCalendarEvent = async (quote) => {
+    const tecnicoSeleccionadoId = form.getFieldValue('technicianId');
+    const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
+    const tecnicoName = tecnicoSeleccionado?.label || 'Sin técnico';
+    console.log("Tecnico: " , tecnicoName);      
+    try{
+      // (technicians.find(t => t.value === form.getFieldValue('technicianId')))?.label || 'Sin técnico'
+      const eventData = {
+        summary: 'Visita técnica',     // summary: `Visita técnica - ${clientName}`,
+        // description: 'Agendada desde el formulario completo de FG Cortinas',
+        description: `Visita técnica agendada para el cliente: ${client.name}, atendida por el técnico: ${tecnicoName}.`,
+        // description: `Visita técnica para el cliente ${values.nombreCliente || 'sin nombre'}`,
+        start: quote.start,
+        end: quote.end,
+      };
+      // await axios.post('/api/calendar/create-event', eventData);
+      const result = await axios.post('/api/calendar/create-event', eventData);
+      console.log('✅ Evento agendado:', result.data);
+    }
+    catch (error) {
+      console.error('❌ Error al agendar visita:', error);
+      message.error('No se pudo agendar la visita técnica');
+      return; // Evitamos continuar si falla
+    }
+  };
+
+  const buildBudgetData = (values) => {
+    /*
+    const budgetData2 = {
+      ...values,
+      products,
+      totals: {
+        UYU: (totals.UYU && !isNaN(totals.UYU)) ? totals.UYU.toFixed(2) : '0.00',   // totalUYU,
+        USD: (totals.USD && !isNaN(totals.USD)) ? totals.USD.toFixed(2) : '0.00',   // totalUSD,
+      }, 
+      
+      // 🔹 Agregamos la visita técnica
+      visita: {
+        start: newQuote.start,
+        end: newQuote.end,
+      },
+    }; 
+    */
+    return {
+      work: workId,
+      name: values.name,
+      address: values.address,
+      description: values.description,
+      client: values.clientId,
+      technician: values.technicianId,
+      clienteName: client?.name,          // Asegúrate de tener estos IDs en tu form
+      tecnicoName: (technicians.find(t => t.value === form.getFieldValue('technicianId')))?.label || 'Sin técnico',
+      totalUYU: Number(totals.UYU),
+      totalUSD: Number(totals.USD),
+      totals: {
+        UYU: (totals.UYU && !isNaN(totals.UYU)) ? totals.UYU.toFixed(2) : '0.00',   // totalUYU,
+        USD: (totals.USD && !isNaN(totals.USD)) ? totals.USD.toFixed(2) : '0.00',   // totalUSD,
+      }, 
+      creationDate: new Date().toISOString(),
+      products: products.map(p => ({
+        product: p.productId,
+        quantity: p.quantity,
+        width: p.width,
+        length: p.length,
+        discount: p.discount || 0,
+        subtotal: p.subtotal || 0,
+      })), 
+      email: values.email,
+  /*    clientPhone: values.clientPhone,
+      // 🔹 Agregamos la visita técnica
+      visita: {
+        start: newQuote.start,
+        end: newQuote.end, 
+      } */
     };
+  };
 
-    const handleGeneratePDF = async () => { 
-      console.log(" generar PDF!!!!")
+  const handleSaveBudget = async (data) => {
+    try {
+      const saved = await createBudget(data);
+      console.log("✅ Presupuesto guardado:", saved);
+      return saved;
+    } catch (error) {
+      console.error("❌ Error al guardar presupuesto:", error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const handleGeneratePDF = async () => { 
+    console.log("📝 Confirmado: generar PDF!!!!"); 
       setShowPDFModal(false);
       setLoading(true);
       try {
-        console.log("PendingBudgetData");
-        console.log(pendingBudgetData);
+        console.log("📄 Generando PDF para presupuesto. PendingBudgetData:", pendingBudgetData);
         await processBudget(pendingBudgetData);
         message.success("Presupuesto generado correctamente.");
 
         // Si el envío fue exitoso:
         form.resetFields();   // <-- Esto limpia todos los campos
         // handleCancel();    // o lo que uses para cerrar el form
-        onClose();            // <-- Esto cierra el modal
+        onClose();            // <-- Esto cierra el modal principal
       } catch (error) {
-        console.error("Error al generar PDF:", error);
+        console.error("❌ Error al generar PDF del presupuesto:", error);
         message.error("Error al generar el presupuesto.");
       } finally {
         setLoading(false);
-        setPendingBudgetData(null);
+        setPendingBudgetData(null);   // limpiar
       }
     };
 
     const processBudget = async (budgetData) => {
       let pdfBase64 = null;
-      // Si la opción de generar PDF está activada. // Generar PDF y obtener el pdfData (Blob)
-      if (generatePDFOption) {
-        console.log("1234... invocando generatePDF...", budgetData)
-        pdfBase64  = await generatePDF(budgetData);
-      }   
-      // Si la opción de enviar por correo está activada. // Enviar por correo si se seleccionó la opción
-      if (sendEmailOption && pdfBase64 && budgetData.email) {
-        await sendPDFToBackend(pdfBase64, budgetData);
 
+      // Si la opción de generar PDF está activada. // Generar PDF y obtener el pdfData (Blob)
+      try{
+        // 1. 🔹 Generar PDF si se seleccionó
+        if (generatePDFOption) {
+          console.log("📄 1234... invocando generatePDF...");
+          pdfBase64  = await generatePDF(budgetData);
+        } 
+      } catch (error) {
+        message.error("Ocurrió un error al generar el pdf.");
+        console.error("❌ Error en generación del pdf:", error);
+      } 
+       
+        // 2. 🔹 Guardar presupuesto en DB
+        // await handleSaveBudget2(budgetData);
+       
+      try{
+        // 3. Si la opción de enviar por correo está activada. // Enviar por correo si se seleccionó la opción que corresponde
+         // const email = form.getFieldValue("email");
+        const email = budgetData.email;
+        if (sendEmailOption && pdfBase64 && email) {   
+          await sendPDFToBackend(pdfBase64, budgetData);
+        }
+        // o 
+        /* await sendBudgetEmail({
+          to: email,
+          subject: "Presupuesto generado",
+          body: "Adjunto encontrará el presupuesto solicitado.",
+          attachment: pdfBase64,
+          filename: "presupuesto.pdf",
+        }); */
+        message.success(`📧 Presupuesto enviado a ${email}`);
+
+        // 4. Otras acciones (descargar, WhatsApp) aquí si querés
+        /* if (sendWhatsAppOption && pdfBase64 && budgetData.clientPhone) {
+          await sendWhatsAppMessage(budgetData.clientPhone, pdfBase64);
+        } */
+
+      } catch (error) {
+        console.error("❌ Error enviando el email:", error);
+        message.error("Error al enviar el presupuesto por correo.");
+      } 
+
+      message.success("Presupuesto generado y enviado correctamente.");
+        // handleCancel();
+    };
         // sendEmailWithPDF(pdfData, budgetData);   (envío desde el frontend)  o  sendBudgetEmail(budgetData, pdfBase64);     (envio desde el backend)  
-        // vrios remitentes:
+        // varios remitentes:
             /*
             await sendPDFToBackend(pdfBase64, {
               ...budgetData,
@@ -544,12 +675,7 @@ const BudgetForm = ({ work, onClose }) => {
               message: '¡Gracias por confiar en nosotros! Adjunto presupuesto.',
               name: 'Presupuesto #124',
             });
-            */  
-      }   
-      message.success("Presupuesto guardado y enviado correctamente!");
-      form.resetFields();
-      handleCancel();
-    };   
+            */       
     
     const handleCancelPDF = () => {
       setShowPDFModal(false);
@@ -560,6 +686,44 @@ const BudgetForm = ({ work, onClose }) => {
       // lógica para generar el PDF sin enviarlo
       console.log("Vista previa PDF generada");
       // exportToPDF({ preview: true }); // si querés diferenciar
+    }; 
+
+    const handleSaveBudget2 = async (rawBudgetData) => {
+      console.log("🟢 Entrando en handleSaveBudget en BudgetForm.js");
+    
+      try {
+        // Transformar los datos al formato requerido por el backend
+        const transformedBudget = {
+          work: rawBudgetData.workId,  // <- Asegúrate de pasar este campo desde el form o estado
+          name: rawBudgetData.name,
+          address: rawBudgetData.address,
+          description: rawBudgetData.description,
+          client: rawBudgetData.clientId,          // ID del cliente
+          technician: rawBudgetData.technicianId,  // ID del técnico
+          totalUYU: Number(rawBudgetData.totals?.UYU) || 0,
+          totalUSD: Number(rawBudgetData.totals?.USD) || 0,
+          creationDate: new Date().toISOString(),  // Puedes usar la fecha actual o una del form
+          products: rawBudgetData.products.map(p => ({
+            product: p.productId,        // El backend espera `product`
+            quantity: p.quantity || 1,
+            width: p.width || 0,
+            length: p.length || 0,
+            discount: p.discount || 0,
+            subtotal: p.subtotal || 0,
+          }))
+        };
+    
+        // Verificar la estructura de budgetData y para ver exactamente qué se está enviando.
+        console.log("📤 Enviando al backend:", JSON.stringify(transformedBudget, null, 2));   
+    
+        const response = await createBudget(transformedBudget);
+    
+        console.log("✅ Presupuesto guardado con éxito:", response);
+        message.success("Presupuesto guardado en la base de datos.");
+      } catch (error) {
+        console.error("❌ Error guardando el presupuesto:", error.response?.data || error.message);
+        message.error(`Error al guardar el presupuesto: ${error.response?.data?.message || error.message}`);
+      }
     };    
 
     // Función para manejar cambios en las opciones de generar PDF y enviar correo
@@ -781,11 +945,11 @@ const BudgetForm = ({ work, onClose }) => {
         backgroundColor: event.backgroundColor || "#1976d2",
       });
       setIsModalOpen(true);
-    };          
+    };  
      
   return (
     <div>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>    {/* Aquí la invocación automática de handleSubmit */}
+        <Form form={form} layout="vertical" onFinish={handleSubmit} >    {/* Aquí la invocación automática de handleSubmit */}
           {/* Scroll horizontal en pantallas chicas */}
           <div style={{ overflowX: 'auto' }}>
           {/*  <Collapse defaultActiveKey={['1', '2']} accordion>  */}
@@ -804,13 +968,15 @@ const BudgetForm = ({ work, onClose }) => {
             </Panel>
 
             {/* Datos generales */}
-            <Panel header="Datos Generales del Presupuesto" key="2">
+            <Panel header="Datos Generales del Presupuesto" key="2">  
               <GeneralDataPanel
                 form={form}
+                client={client} // 👈 aquí pasas el cliente
                 technicians={technicians}
-                loadingProducts={loadingProducts}
-                newQuote={newQuote}
-                setNewQuote={setNewQuote}
+                //newQuote={newQuote}
+                //setNewQuote={setNewQuote}
+                //description={description}
+                //onDescriptionChange={setDescription}
               />
             </Panel>
               
@@ -829,7 +995,7 @@ const BudgetForm = ({ work, onClose }) => {
             </Panel>
               
               {/* Opciones adicionales */}
-              <Panel header="Opciones Adicionales" key="4">
+              <Panel header="Opciones Adicionales" key="4">  
 
                 {/* Opciones de generar PDF y enviar por correo */}
                 <Row gutter={16} style={{ marginTop: 20 }}>
@@ -846,37 +1012,24 @@ const BudgetForm = ({ work, onClose }) => {
                       </Checkbox>
                     </Tooltip>
                   </Col>
+                  {/*
                   <Col>
                     <Form.Item label="Email (opcional)" name="email">
                       <Input placeholder="ejemplo@correo.com" />
                     </Form.Item>
-                  </Col>
+                  </Col>  
+                  */}
                 </Row>
               </Panel>
+              
 
               {/* Resumen del Presupuesto */}
               <Panel header="Resumen del Presupuesto" key="5">
                 <ResumenPanel products={products} totals={totals} newQuote={newQuote} />
-              </Panel>
+              </Panel>  
+              
 
-                {/* Tasa de cambio 
-                  <Col span={4}>
-                      <Form.Item label="Tasa de Cambio" style={{ textAlign: 'center' }}>
-                      <InputNumber
-                          value={exchangeRate}
-                          // onChange={(value) => setExchangeRate(value)}
-                          onChange={handleExchangeRateChange} // Actualiza la tasa de cambio
-                          style={{ width: '100%' }}
-                          min={0}
-                          step={0.01} // Permite valores decimales
-                          precision={2} // Limita a 2 decimales
-                          placeholder="Tasa de Cambio"
-                      />
-                      </Form.Item>
-                  </Col>
-                  */}
-
-            </Collapse>
+          </Collapse>
 
             <Space style={{ marginTop: 16 }} align="center" size="large">
               <Button onClick={handleCancel} icon={<CloseOutlined />} size="large" style={{ width: "120px", backgroundColor: "#f44336", color: "white" }}>
@@ -885,10 +1038,18 @@ const BudgetForm = ({ work, onClose }) => {
 
               <Button type="primary" htmlType="submit" 
                 // onClick={showConfirmationModal} 
-                onClick={() => {setShowPDFModal(); }} 
+                // onClick={() => {setShowPDFModal(); }} 
+                /*onClick={() => {
+                  if (generatePDFOption) {
+                    setShowPDFModal(true); // Mostrar el modal
+                  } else {
+                    form.submit(); // Ejecutar el submit directamente o lo que quieras que pase si no se genera PDF
+                    // ó await handleSaveBudget(...); // o lo que necesites hacer
+                  }
+                }} */ // ⚠️ No uses onClick={...} aquí, ya que queremos que el formulario ejecute onFinish={handleSubmit} por sí solo.
                 icon={loading ? <LoadingOutlined /> : <PlusOutlined />} 
-                size="large" style={{ width: "120px" }}>
-                {loading ? 'Cargando' : 'Presupuestar'}
+                size="large" style={{ width: "290px" }}>
+                {loading ? 'Cargando' : 'Confirmar y Generar Presupuesto'}
               </Button>
 
               <Button
@@ -899,6 +1060,11 @@ const BudgetForm = ({ work, onClose }) => {
               >
                 Vista Previa PDF
               </Button>
+{/*
+<Form.Item label="Descripción (test)" name="descriptionTest">
+  <Input.TextArea />
+</Form.Item>
+*/}
             </Space>
           </div>
         </Form>
@@ -910,7 +1076,7 @@ const BudgetForm = ({ work, onClose }) => {
         // icon: <ExclamationCircleOutlined />,
         // content= "Esto es solo una prueba."
         onOk={handleGeneratePDF}      // onOk: () => console.log("OK"),
-        onCancel={handleCancelPDF}    // onCancel: () => console.log("Cancelado"),
+        onCancel={handleCancelPDF}    // onCancel: () => console.log("Cancelado"),    
         okText="Sí, generar"
         cancelText="Cancelar"
       >
@@ -931,3 +1097,53 @@ const BudgetForm = ({ work, onClose }) => {
 };
 
 export default BudgetForm;
+
+/*
+✅ Funcionalidades a ejecutar
+Cuando se envía el formulario, pueden ocurrir hasta 4 acciones:
+
+✅ Guardar el presupuesto en la base de datos
+
+📨 Enviar un PDF por email
+
+📂 Guardar el PDF localmente (descargar o en sistema de archivos)
+
+💬 Enviar un mensaje de WhatsApp con el presupuesto
+
+✅ Orden propuesto:
+// Al enviar el formulario
+1. Validar los datos del formulario
+2. Guardar el presupuesto en la base de datos
+3. Generar el PDF del presupuesto
+4. Si el usuario eligió enviar por email → Enviar el PDF por email
+5. Si el usuario eligió guardar localmente → Descargar o guardar el PDF
+6. Si el usuario eligió enviar por WhatsApp → Enviar el PDF o un link vía WhatsApp
+
+✔️ Ventajas de esta estructura
+Código limpio y mantenible: Cada acción es una función separada.
+
+Evita duplicaciones: PDF solo se genera una vez.
+
+Ejecución segura: Si guardar falla, no se intenta nada más.
+
+Flexible: Se adapta fácilmente si luego agregás Telegram, Google Drive, etc.
+
+{/* Tasa de cambio 
+                  <Col span={4}>
+                      <Form.Item label="Tasa de Cambio" style={{ textAlign: 'center' }}>
+                      <InputNumber
+                          value={exchangeRate}
+                          // onChange={(value) => setExchangeRate(value)}
+                          onChange={handleExchangeRateChange} // Actualiza la tasa de cambio
+                          style={{ width: '100%' }}
+                          min={0}
+                          step={0.01} // Permite valores decimales
+                          precision={2} // Limita a 2 decimales
+                          placeholder="Tasa de Cambio"
+                      />
+                      </Form.Item>
+                  </Col>
+                  *
+
+*/
+

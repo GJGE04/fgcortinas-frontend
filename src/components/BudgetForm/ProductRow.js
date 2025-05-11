@@ -34,8 +34,8 @@ const ProductRow = ({
       <Col span={2}>
         <Form.Item label="Cantidad">
           <InputNumber
-            value={product.quantity}
-            onChange={(value) => handleProductDetailChange(index, 'quantity', value)}
+            value={product.quantity || 1}
+            onChange={(value) => handleProductDetailChange(index, 'quantity', value || 1)}
             min={1}
             style={{ width: "100%" }}
             disabled={!(product.habilitado && product.habilitado.quantityC)}

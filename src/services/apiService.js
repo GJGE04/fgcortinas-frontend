@@ -41,4 +41,24 @@ export const getClients = async () => {
   }
 };
 
+// Obtener visitas técnicas agendadas
+export const getScheduledVisits = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/calendar/events`, {
+      headers: getAuthHeader(),
+    });
+
+    // console.log("🔍 Respuesta de /calendar/events:", response.data);
+    console.log("🔍 Eventos recibidos:", response.data);
+
+    // return response.data;
+    // Asegurate que estás devolviendo el array correcto
+    return response.data.events || []; // Accede a la propiedad `events` // ← cambio clave aquí
+  } catch (error) {
+    console.error("Error al obtener eventos del calendario:", error);
+    message.error("No se pudieron cargar los eventos agendados.");
+    return [];
+  }
+};
+
 
