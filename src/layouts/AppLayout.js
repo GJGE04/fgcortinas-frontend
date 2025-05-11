@@ -41,12 +41,13 @@ const AppLayout = ({ children }) => {
 
   // const showFooter = ["/dashboard", "/otra-pagina"].includes(location.pathname);
   // ✅ Lista de rutas donde el footer siempre debe mostrarse, incluso si el usuario está logueado
-  const footerVisibleRoutes = ["/dashboard", "/login", "/", "/nosotros"];
+  const footerVisibleRoutes = ["/dashboard", "/login", "/a", "/nosotros"];
 
   // ✅ Se evalúa si la ruta actual está en la lista
   // const showFooter = footerVisibleRoutes.includes(location.pathname);
   const showFooter = footerVisibleRoutes.some(route => location.pathname.startsWith(route));
 
+  const [isMobile, setIsMobile] = useState(false);
 
 /*
   // Verificar el rol al cargar el componente
@@ -182,93 +183,97 @@ const AppLayout = ({ children }) => {
       {/* Menú lateral */}
       {/* Menú lateral solo si la ruta no es login, register o welcome */}
       {showSider && (
-      <Sider 
-        breakpoint="md"
-        collapsedWidth={0}  // "0"
-        collapsible 
-        collapsed={collapsed} 
-        // onCollapse={setCollapsed} 
-        onCollapse={(val) => setCollapsed(val)}
-        style={{ background: "#D32F2F" }}
-      >
-      <div className="logo" style={{ color: "white", textAlign: "center", padding: "20px", fontSize: "20px" }}>
-          {/* Logo en el Sidebar */}
-          <img src={logo} alt="Logo" style={{ width: "120px", marginBottom: "10px" }} /> {/* Aumenté el tamaño del logo */}
-          <div style={{ fontSize: "24px" }}>FG Cortinas</div> {/* Aumenté el tamaño de la fuente */}
-        </div>
-        <Menu theme="dark" mode="inline" defaultSelectedKeys={["1"]} onClick={() => {
-          if (window.innerWidth < 768) setCollapsed(true);
-        }}>
-          <Menu.Item key="1" icon={<HomeOutlined />}>
-            <Link to="/dashboard">Inicio</Link>
-          </Menu.Item>
-
-          <Menu.Item key="2" icon={<UnorderedListOutlined />}>
-            <Link to="/product-types">Tipos de productos</Link>
-          </Menu.Item>
-
-          <Menu.Item key="3" icon={<AppstoreOutlined />}>
-            <Link to="/products">Productos</Link>
-          </Menu.Item>
-
-          {/* Vendedor */}
-          {userRole && (userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Vendedor') ? (
-            <Menu.Item key="4" icon={<ShoppingCartOutlined />}>
-              <Link to="/order">Pedidos</Link>
-            </Menu.Item>
-          ) : null}
-
-          {/* Mostrar el menú de "Usuarios" solo si el rol es admin o superadmin */}
-          {userRole === 'Admin' || userRole === 'Superadmin' ? (
-              <Menu.Item key="5" icon={<UserOutlined />}>
-                <Link to="/users">Usuarios</Link>
-              </Menu.Item>
-          ) : null}
-
-          {/* Mostrar el menú de "Clientes" solo si el rol es admin o superadmin */}
-          {(userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Editor' || userRole === 'Tecnico') && (
-            <>
-              <Menu.Item key="6" icon={<TeamOutlined />}>
-                <Link to="/clients">Clientes</Link>
-              </Menu.Item>
-              <Menu.Item key="7" icon={<FileDoneOutlined />}>
-                <Link to="/works">Trabajos</Link>
-              </Menu.Item>
-              <Menu.Item key="8" icon={<DollarOutlined />}>
-                <Link to="/budgets">Presupuestos</Link>
-              </Menu.Item>
-              <Menu.Item key="9" icon={<HistoryOutlined />}>
-                <Link to="/old-works">Trabajos Antiguos</Link>
+        <Sider 
+          breakpoint="md"
+          collapsedWidth={0}  // "0" , {0}
+          trigger={null} // 👈 Esto elimina el trigger autogenerado.  Esto hará que ese botón de hamburguesa en la esquina del contenido desaparezca completamente.
+          onBreakpoint={(broken) => {
+            setIsMobile(broken); // true = pantalla chica
+            setCollapsed(broken); // opcional: colapsa automáticamente
+          }}
+          collapsible 
+          collapsed={collapsed}  
+          onCollapse={(val) => setCollapsed(val)}
+          style={{ background: "#D32F2F", zIndex: 1001 }}
+        >
+          <div className="logo" style={{ color: "white", textAlign: "center", padding: "20px", fontSize: "20px" }}>
+            {/* Logo en el Sidebar */}
+            <img src={logo} alt="Logo" style={{ width: "120px", marginBottom: "10px" }} /> {/* Aumenté el tamaño del logo */}
+            <div style={{ fontSize: "24px" }}>FG Cortinas</div> {/* Aumenté el tamaño de la fuente */}
+            </div>
+            <Menu theme="dark" mode="inline" defaultSelectedKeys={["1"]} onClick={() => {
+              if (window.innerWidth < 768) setCollapsed(true);
+            }}>
+              <Menu.Item key="1" icon={<HomeOutlined />}>
+                <Link to="/dashboard">Inicio</Link>
               </Menu.Item>
 
-              <Menu.Item key="10" icon={<CalendarOutlined />}>
-                <Link to="/calendar">Calendario</Link>
+              <Menu.Item key="2" icon={<UnorderedListOutlined />}>
+                <Link to="/product-types">Tipos de productos</Link>
               </Menu.Item>
-            </>
-          )}
 
-          {/* Sección de Administrador */}
-          {/* Mostrar el menú de administración solo si el rol es admin o superadmin */}
-          {showAdminMenu && (
-              <Menu.Item key="11" icon={<SettingOutlined />}>
-                <Link to="/admin">Admin</Link>
+              <Menu.Item key="3" icon={<AppstoreOutlined />}>
+                <Link to="/products">Productos</Link>
               </Menu.Item>
-            )}
 
-            {/* Guest */} {/*
-            {role === 'Guest' && (
-              <Menu.Item key="12" icon={<UserOutlined />}>
-                <Link to="/perfil">Mi Perfil</Link>
-              </Menu.Item>
-            )}  */}
-            
-        </Menu>
-      </Sider>
+              {/* Vendedor */}
+              {userRole && (userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Vendedor') ? (
+                <Menu.Item key="4" icon={<ShoppingCartOutlined />}>
+                  <Link to="/order">Pedidos</Link>
+                </Menu.Item>
+              ) : null}
+
+              {/* Mostrar el menú de "Usuarios" solo si el rol es admin o superadmin */}
+              {userRole === 'Admin' || userRole === 'Superadmin' ? (
+                  <Menu.Item key="5" icon={<UserOutlined />}>
+                    <Link to="/users">Usuarios</Link>
+                  </Menu.Item>
+              ) : null}
+
+              {/* Mostrar el menú de "Clientes" solo si el rol es admin o superadmin */}
+              {(userRole === 'Admin' || userRole === 'Superadmin' || userRole === 'Editor' || userRole === 'Tecnico') && (
+                <>
+                  <Menu.Item key="6" icon={<TeamOutlined />}>
+                    <Link to="/clients">Clientes</Link>
+                  </Menu.Item>
+                  <Menu.Item key="7" icon={<FileDoneOutlined />}>
+                    <Link to="/works">Trabajos</Link>
+                  </Menu.Item>
+                  <Menu.Item key="8" icon={<DollarOutlined />}>
+                    <Link to="/budgets">Presupuestos</Link>
+                  </Menu.Item>
+                  <Menu.Item key="9" icon={<HistoryOutlined />}>
+                    <Link to="/old-works">Trabajos Antiguos</Link>
+                  </Menu.Item>
+
+                  <Menu.Item key="10" icon={<CalendarOutlined />}>
+                    <Link to="/calendar">Calendario</Link>
+                  </Menu.Item>
+                </>
+              )}
+
+              {/* Sección de Administrador */}
+              {/* Mostrar el menú de administración solo si el rol es admin o superadmin */}
+              {showAdminMenu && (
+                  <Menu.Item key="11" icon={<SettingOutlined />}>
+                    <Link to="/admin">Admin</Link>
+                  </Menu.Item>
+                )}
+
+                {/* Guest */} {/*
+                {role === 'Guest' && (
+                  <Menu.Item key="12" icon={<UserOutlined />}>
+                    <Link to="/perfil">Mi Perfil</Link>
+                  </Menu.Item>
+                )}  */}
+                
+            </Menu>
+        </Sider>
       )}
 
-      <Layout>
+      <Layout style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         {/* Barra de navegación superior */}
-        <Header style={{ 
+        <Header className="ant-layout-header" style={{ 
           background: "#D32F2F", 
           padding: "10px 20px", // padding: "0 20px",
           color: "white", 
@@ -288,52 +293,51 @@ const AppLayout = ({ children }) => {
             </span>
           </div>
 */}
-
-        {/* Izquierda: Avatar + Bienvenida + Dropdown */}
-          <Dropdown
-            overlay={
-              <Menu>
-                <Menu.Item key="1" disabled>
-                  Perfil (en construcción)
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item key="2" onClick={handleLogout}>
-                  Cerrar sesión
-                </Menu.Item>
-              </Menu>
-            }
-            placement="bottomLeft"
-            arrow
-          >
-            <div style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: "10px" }}>
-              {username ? (
-                <>
-                  <Avatar
-                    style={{ backgroundColor: "#ffffff33", color: "#fff", fontWeight: "bold" }}>
-                    {username?.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <span style={{ fontSize: "16px" }}>
-                    Bienvenido, <strong>{username}</strong>
-                  </span>
-                </>
-              ) : (
-                <UserOutlined style={{ fontSize: "18px", color: "white" }} />
-              )}
-            </div>
-          </Dropdown>
-
-          {!showSider && (
-            <Button
-              type="text"
-              icon={<MenuOutlined style={{ fontSize: "24px", color: "white" }} />}
-              onClick={() => setCollapsed(false)}
-              style={{ display: "block", marginRight: "auto" }}
-            />
-          )}
-
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isMobile && (
+              <Button
+                type="text"
+                icon={<MenuOutlined style={{ fontSize: "24px", color: "white" }} />}
+                onClick={() => setCollapsed(!collapsed)}  // ← ahora hace toggle
+                style={{ marginLeft: "10px", color: "white", fontSize: "20px" }} 
+              />
+          )} 
+            {/* Izquierda: Avatar + Bienvenida + Dropdown */}
+            <Dropdown
+              overlay={
+                <Menu>
+                  <Menu.Item key="1" disabled>
+                    Perfil (en construcción)
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item key="2" onClick={handleLogout}>
+                    Cerrar sesión
+                  </Menu.Item>
+                </Menu>
+              }
+              placement="bottomLeft"
+              arrow
+            >
+              <div style={{ display: "flex", alignItems: "center", cursor: "pointer", gap: "10px" }}>
+                {username ? (
+                  <>
+                    <Avatar
+                      style={{ backgroundColor: "#ffffff33", color: "#fff", fontWeight: "bold" }}>
+                      {username?.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <span style={{ fontSize: "16px" }}>
+                      Bienvenido, <strong>{username}</strong>
+                    </span>
+                  </>
+                ) : (
+                  <UserOutlined style={{ fontSize: "18px", color: "white" }} />
+                )}
+              </div>
+            </Dropdown>
+        </div>
 
         {/* Centro: Texto centrado absolutamente */}
-          <div
+          <div className="header-title-center"
             style={{
               position: "absolute",
               left: "50%",
@@ -347,7 +351,7 @@ const AppLayout = ({ children }) => {
 
           {/* Contenedor de los botones alineados a la derecha */}
           {/* Botón de Cerrar sesión y enlace de retroceso */}
-          <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+          <div className="header-buttons" style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}>
             <Button
               onClick={goBack}
               style={{

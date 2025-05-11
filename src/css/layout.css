@@ -1,7 +1,18 @@
 /* layout.css */
 /* Scroll personalizado solo para el contenido al agregar la segunda parte */
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+.ant-layout {
+  height: 100%;
+}
+
 .scrollable-content {
     /* height: calc(100vh - 112px); /* Ajusta si tu Header tiene otra altura */  /* luego se Elimina la altura fija */
+    /* height: calc(100vh - 64px - 64px); /* 64px header + 64px footer */
     flex: 1; /* Esto permite que el contenido se expanda pero sin forzar scroll */
     overflow-y: auto;
     margin: 20px;
@@ -28,29 +39,68 @@
   border-radius: 10px;
   border: 2px solid #f0f0f0; /* Espaciado para que se vea más suave */
 }
+/*
+.hamburger-button {
+  position: absolute;
+  left: 15px;
+  top: 15px;
+  z-index: 1000;
+  background: transparent;
+  border: none;
+}*/
+/*
+@media (min-width: 769px) {
+  .hamburger-button {
+    display: none;
+  }
+}*/
 
 /* Adaptar layout a móviles */
 @media (max-width: 768px) {
   .scrollable-content {
-    height: calc(100vh - 140px);  /* Aumentamos un poco el espacio para headers en móviles */
+    /* height: calc(100vh - 140px);  /* Aumentamos un poco el espacio para headers en móviles */
+    height: auto;
     margin: 10px;
     padding: 10px;
     border-radius: 0;
   }
 
-  .ant-layout-sider {
-    display: none; /* Ocultar menú lateral en pantallas pequeñas */
-  }
-
+/*
   .ant-layout-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  } */
+/*
+  .ant-layout-header button {
+    font-size: 12px !important;
+    padding: 4px 10px;
+  } */
+
+  .ant-layout-header {
+    flex-wrap: wrap;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    height: auto !important;
+    padding: 10px 15px !important;
+  }
+
+  .ant-layout-header .header-buttons {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
   }
 
   .ant-layout-header button {
     font-size: 12px !important;
-    padding: 4px 10px;
+    padding: 4px 10px !important;
+  }
+
+  .header-title-center {
+    position: static !important;
+    transform: none !important;
+    margin-top: 10px;
+    font-size: 18px;
   }
 }
 
