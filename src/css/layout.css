@@ -1,8 +1,8 @@
 /* layout.css */
 /* Scroll personalizado solo para el contenido al agregar la segunda parte */
 .scrollable-content {
-    height: calc(100vh - 112px); /* Ajusta si tu Header tiene otra altura */  /* luego se Elimina la altura fija */
-    /* flex: 1; /* Esto permite que el contenido se expanda pero sin forzar scroll */
+    /* height: calc(100vh - 112px); /* Ajusta si tu Header tiene otra altura */  /* luego se Elimina la altura fija */
+    flex: 1; /* Esto permite que el contenido se expanda pero sin forzar scroll */
     overflow-y: auto;
     margin: 20px;
     padding: 20px;

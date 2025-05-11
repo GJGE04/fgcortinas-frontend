@@ -178,7 +178,7 @@ const AppLayout = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>   {/* style={{ flex: 1 }} */}
+    <Layout style={{ minHeight: "100vh" }}>  
       {/* Menú lateral */}
       {/* Menú lateral solo si la ruta no es login, register o welcome */}
       {showSider && (
@@ -459,8 +459,8 @@ const AppLayout = ({ children }) => {
         //</Layout>  {children} 
         //</Content> */}
 
-        {/* version del scroll usando css */}   {/* style={{ flex: 1 }} */}
-        <Content className="scrollable-content" style={{ flex: 1, overflowY: "auto" }}>
+        {/* version del scroll usando css */}  
+        <Content className="scrollable-content" >
           {children}
         </Content>
           
