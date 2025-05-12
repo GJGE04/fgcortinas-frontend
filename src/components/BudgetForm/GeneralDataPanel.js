@@ -137,7 +137,7 @@ const GeneralDataPanel = ({
         </Col>
       </Row>
 
-      <Button onClick={() => console.log(form.getFieldsValue())}>Ver estado</Button>
+      {/*<Button onClick={() => console.log(form.getFieldsValue())}>Ver estado</Button>*/}
     </>
   );
 };

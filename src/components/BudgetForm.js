@@ -3,6 +3,7 @@ import axios from "axios";
 import { Form, Input, Button, Row, Col, message, Space, Modal, Checkbox, Collapse, Tooltip } from "antd";
 import { PlusOutlined, DeleteOutlined, LoadingOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import "jspdf-autotable";  // Asegúrate de importar el plugin de autoTable
+import { notification } from 'antd';
 
 import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Tema de PrimeReact
 import 'primereact/resources/primereact.min.css';  // Estilos generales de PrimeReact
@@ -77,6 +78,9 @@ const BudgetForm = ({ work, onClose }) => {
     visitDate: "",
     // podés agregar más campos si los necesitás
   });
+
+  const [pdfProcessing, setPdfProcessing] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
 
   // Verifica que work no sea undefined
   console.log("work en BudgetForm:", work);  
@@ -410,6 +414,9 @@ const BudgetForm = ({ work, onClose }) => {
     setProducts([{ productId: "", quantity: 0, width: 0, length: 0, price: 0, discount: 0, subtotal: 0 }]);
     //setTotalUSD(0);
     //setTotalUYU(0);
+
+    setShowPDFModal(false);
+    setPdfError(false); // ✅ También borramos el estado de error si el usuario cancela
     onClose();
   };
 
@@ -484,7 +491,7 @@ const BudgetForm = ({ work, onClose }) => {
   
       // 6. Mostrar modal de confirmación o ejecutar directamente
       // ✅ Mostrar modal solo si se marcó el checkbox
-      if (generatePDF) {
+      if (generatePDF || sendEmailOption) {
         setShowPDFModal(true);      // 🔸 Muestra el modal de confirmación. // Abrimos modal o continuamos directo con processBudget
       } else {
         message.success("Presupuesto guardado correctamente.");   // 🔸 Guarda directo sin PDF
@@ -493,6 +500,7 @@ const BudgetForm = ({ work, onClose }) => {
   
       message.success("✅ Visita agendada y presupuesto listo y registrado con éxito");
       // handleCancel(); // cerrar formulario
+      // setShowPDFModal(false)
     } catch (error) {
       console.error("❌ Error en handleSubmit al enviar formulario:", error);
       message.error("Ocurrió un error al procesar el presupuesto.");
@@ -501,6 +509,7 @@ const BudgetForm = ({ work, onClose }) => {
   };
 
   const createCalendarEvent = async (quote) => {
+    console.log("Entrando en createCalendarEvent: " , quote);
     const tecnicoSeleccionadoId = form.getFieldValue('technicianId');
     const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
     const tecnicoName = tecnicoSeleccionado?.label || 'Sin técnico';
@@ -515,9 +524,24 @@ const BudgetForm = ({ work, onClose }) => {
         start: quote.start,
         end: quote.end,
       };
-      // await axios.post('/api/calendar/create-event', eventData);
-      const result = await axios.post('/api/calendar/create-event', eventData);
-      console.log('✅ Evento agendado:', result.data);
+      console.log("eventData: " , eventData);
+      // await axios.post('/api/calendar/create-event', eventData);  
+      const result = await fetch(`${API_URL}/calendar/create-event`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      });
+      
+      if (!result.ok) {
+        throw new Error(`Error HTTP: ${result.status}`);
+      }
+      
+      const data = await result.json();
+      console.log('✅ Evento agendado:', data);
+      
+      // console.log('✅ Evento agendado:', result.data);
     }
     catch (error) {
       console.error('❌ Error al agendar visita:', error);
@@ -611,27 +635,25 @@ const BudgetForm = ({ work, onClose }) => {
     };
 
     const processBudget = async (budgetData) => {
+      setPdfProcessing(true); // 🔄 Mostrar spinner
+      setPdfError(false); // 🔄 Resetear estado de error al comenzar
       let pdfBase64 = null;
 
       // Si la opción de generar PDF está activada. // Generar PDF y obtener el pdfData (Blob)
       try{
         // 1. 🔹 Generar PDF si se seleccionó
-        if (generatePDFOption) {
-          console.log("📄 1234... invocando generatePDF...");
-          pdfBase64  = await generatePDF(budgetData);
+        if (generatePDFOption || sendEmailOption) {
+          console.log("📄 1234... invocando generatePDF...", generatePDFOption, sendEmailOption);
+          pdfBase64  = await generatePDF(budgetData, generatePDFOption);  // true: descarga local
         } 
-      } catch (error) {
-        message.error("Ocurrió un error al generar el pdf.");
-        console.error("❌ Error en generación del pdf:", error);
-      } 
        
         // 2. 🔹 Guardar presupuesto en DB
         // await handleSaveBudget2(budgetData);
-       
-      try{
+      
         // 3. Si la opción de enviar por correo está activada. // Enviar por correo si se seleccionó la opción que corresponde
          // const email = form.getFieldValue("email");
         const email = budgetData.email;
+        console.log(generatePDFOption, sendEmailOption, email );
         if (sendEmailOption && pdfBase64 && email) {   
           await sendPDFToBackend(pdfBase64, budgetData);
         }
@@ -643,6 +665,13 @@ const BudgetForm = ({ work, onClose }) => {
           attachment: pdfBase64,
           filename: "presupuesto.pdf",
         }); */
+
+        notification.success({
+          message: 'Operación completada',
+          description: `${
+            generatePDFOption ? "PDF generado." : ""
+          } ${sendEmailOption ? "Correo enviado." : ""}`,
+        });
         message.success(`📧 Presupuesto enviado a ${email}`);
 
         // 4. Otras acciones (descargar, WhatsApp) aquí si querés
@@ -650,13 +679,20 @@ const BudgetForm = ({ work, onClose }) => {
           await sendWhatsAppMessage(budgetData.clientPhone, pdfBase64);
         } */
 
+        message.success("Presupuesto generado y enviado correctamente.");
       } catch (error) {
-        console.error("❌ Error enviando el email:", error);
-        message.error("Error al enviar el presupuesto por correo.");
-      } 
-
-      message.success("Presupuesto generado y enviado correctamente.");
-        // handleCancel();
+        // console.error("❌ Error enviando el email:", error); console.error("❌ Error en generación del pdf:", error);
+        console.error("❌ Error:", error);
+        setPdfError(true); // ⚠️ Mostrar botón "Reintentar"
+        message.error("Error al procesar."); // message.error("Error al enviar el presupuesto por correo."); message.error("Ocurrió un error al generar el pdf.");
+        notification.error({
+          message: 'Error al procesar',
+          description: `No se pudo completar la operación: ${error.message || 'Error desconocido'}`,
+        });
+        // No cerramos el modal
+      } finally {
+        setPdfProcessing(false); // ✅ Ocultar spinner
+      }
     };
         // sendEmailWithPDF(pdfData, budgetData);   (envío desde el frontend)  o  sendBudgetEmail(budgetData, pdfBase64);     (envio desde el backend)  
         // varios remitentes:
@@ -946,6 +982,37 @@ const BudgetForm = ({ work, onClose }) => {
       });
       setIsModalOpen(true);
     };  
+
+    const modalTitle = (() => {
+      if (generatePDFOption && sendEmailOption) {
+        return "¿Generar PDF y enviar por correo?";
+      } else if (generatePDFOption) {
+        return "¿Generar PDF del presupuesto?";
+      } else if (sendEmailOption) {
+        return "¿Enviar presupuesto por correo?";
+      } else {
+        return "¿Proceder con la operación?";
+      }
+    })();    
+
+    const modalDescription = (() => {
+      if (generatePDFOption && sendEmailOption)
+        return "Se generará el PDF del presupuesto y se enviará por correo al cliente.";
+      if (generatePDFOption)
+        return "Se generará y descargará el PDF del presupuesto.";
+      if (sendEmailOption)
+        return "Se enviará el presupuesto por correo.";
+      return "No hay ninguna acción seleccionada.";
+    })();
+    
+    const okButtonText = (() => {
+      if (generatePDFOption && sendEmailOption) return "Sí, generar y enviar";
+      if (generatePDFOption) return "Sí, generar";
+      if (sendEmailOption) return "Sí, enviar";
+      return "Sí, proceder";
+    })();
+
+    const shouldDisableOkButton = !generatePDFOption && !sendEmailOption;
      
   return (
     <div>
@@ -1071,16 +1138,41 @@ const BudgetForm = ({ work, onClose }) => {
 
       {/* 🔻 Agregás el modal acá, al final del return */}
       <Modal
-        title="¿Generar PDF del presupuesto?"
+        title={modalTitle}
         open={showPDFModal}
         // icon: <ExclamationCircleOutlined />,
         // content= "Esto es solo una prueba."
         onOk={handleGeneratePDF}      // onOk: () => console.log("OK"),
         onCancel={handleCancelPDF}    // onCancel: () => console.log("Cancelado"),    
-        okText="Sí, generar"
+        okText={okButtonText}
         cancelText="Cancelar"
+        confirmLoading={pdfProcessing} // 🔄 Esto activa el spinner
+        okButtonProps={{ disabled: shouldDisableOkButton }}
       >
-        <p>¿Desea generar y descargar el presupuesto en PDF?</p>
+        <p>
+          {/*}
+          {generatePDFOption && sendEmailOption
+            ? "Se generará el PDF y se enviará por correo."
+            : generatePDFOption
+            ? "Se generará y descargará el PDF del presupuesto."
+            : sendEmailOption
+            ? "Se enviará el presupuesto por correo."
+            : "No hay ninguna acción seleccionada."} */}
+            {modalDescription}
+        </p>
+
+        {pdfError && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ color: 'red' }}>Ocurrió un error. Puede reintentar la operación.</p>
+            <Button
+              type="primary"
+              onClick={handleGeneratePDF}
+              loading={pdfProcessing}
+            >
+              Reintentar
+            </Button>
+          </div>
+        )}
       </Modal>
 
       {/* Agregás el modal al final */}
@@ -1147,3 +1239,26 @@ Flexible: Se adapta fácilmente si luego agregás Telegram, Google Drive, etc.
 
 */
 
+/*
+Con esto tenés:
+
+🎯 Texto adaptado a las opciones activas.
+
+✅ Botón de acción desactivado si no se elige nada.
+
+🔄 Loader durante el proceso.
+
+🔔 Notificaciones de éxito o error.
+
+📌 El modal se cierra solo si todo sale bien.
+
+
+Esto hace que:
+
+🔁 Si ocurre un error, se muestre un mensaje y un botón para reintentar.
+
+🔒 El modal no se cierra, así que el usuario no pierde el contexto.
+
+🔄 Si el usuario hace clic en “Reintentar”, se ejecuta el mismo flujo.
+
+*/

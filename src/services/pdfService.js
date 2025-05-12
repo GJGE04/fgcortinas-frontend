@@ -4,7 +4,7 @@ import autoTable from 'jspdf-autotable'; // ✅ Esta SÍ importa y registra el p
 import logo from '../assets/logo.png'; // ⚠️ ajustá la ruta al logo. asegurate de importar la imagen como un módulo
 import QRCode from 'qrcode';
 
-export const generatePDF = async (budgetData) => {
+export const generatePDF = async (budgetData, shouldDownload = true) => {
     console.log("Generando pdf del presupuesto........", budgetData);
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -104,21 +104,26 @@ export const generatePDF = async (budgetData) => {
         
                 // Guardar el PDF
                 // const pdfData = doc.output('blob');  // Guardar el PDF como Blob para enviarlo por correo
-                doc.save(`${budgetData.name}.pdf`);     // Guardar el PDF en el sistema de archivos (opcional). // Descarga local
                 // resolve(pdfData);
+                // doc.save(`${budgetData.name}.pdf`);     // Guardar el PDF en el sistema de archivos (opcional). // Descarga local
+
+                // ✅ Descargar solo si se indica
+                if (shouldDownload) {
+                  doc.save(`${budgetData.name}.pdf`);
+                }
         
-                // ⬅️ base64 del PDF
+                // ⬅️ base64 del PDF. // ✅ Siempre retornar base64 del PDF
                 const pdfBase64 = doc.output('datauristring'); // esto devuelve el PDF en base64. // Para enviar por correo
                 resolve(pdfBase64);
             });
-            };
+          };
         
             img.onerror = (err) => reject(err);
         });
   }
   catch (error)
   {
-    console.error("Error generando pdf del presupuesto...");
+    console.error("❌ Error generando pdf del presupuesto:", error);
   }
 };
 
