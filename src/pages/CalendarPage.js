@@ -10,8 +10,7 @@ import dayjs from "dayjs";
 import "../css/CalendarioVisitas.css";
 import { useEffect } from "react";
 import { useMediaQuery } from "@mui/material";
-import { getTechnicians, getClients } from "../services/apiService"; 
-import { getScheduledVisits } from "../services/apiService";
+import { getTechnicians, getClients, getScheduledVisits } from "../services/apiService"; 
 
 export default function CalendarioVisitas() { /*
   const [citas, setCitas] = useState([
@@ -29,42 +28,9 @@ export default function CalendarioVisitas() { /*
     }
   ]); */
 
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api'; 
+
   const [citas, setCitas] = useState([]);
-
-  // traer los datos reales del backend:
-  useEffect(() => {
-    const fetchScheduledVisits = async () => {
-      try {
-        const eventosAPI = await getScheduledVisits();
-  
-        // Destacar visualmente los eventos según su origen (por ejemplo, si fueron "Agendados desde el formulario completo"), 
-        // podés usar un color distinto basándote en el campo description.
-        const eventosTransformados = eventosAPI.map((ev, i) => {
-          const descripcion = ev.description || "";
-          const esFormularioCompleto = descripcion.includes("formulario completo");
-
-          return {
-            id: ev.id || String(i),
-            title: ev.summary || "Evento sin título",
-            start: ev.start?.dateTime,
-            end: ev.end?.dateTime,
-            extendedProps: {
-              description: descripcion,
-              creator: ev.creator?.email || "",
-            },
-            color: esFormularioCompleto ? "#4CAF50" : "#1976D2", // Verde si viene del formulario completo
-          };
-        });
-  
-        setCitas(eventosTransformados);
-      } catch (error) {
-        console.error("Error al cargar eventos:", error);
-      }
-    };
-  
-    fetchScheduledVisits();
-  }, []);    
-
   const [modalOpen, setModalOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
@@ -77,10 +43,89 @@ export default function CalendarioVisitas() { /*
     tipo: "Presupuesto",
     direccion: "",
   });
-
   const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
   const [technicians, setTechnicians] = useState([]);  // Técnicos
   const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const tecnicosData = await getTechnicians();
+        setTechnicians(tecnicosData.map((tecnico) => ({
+          value: tecnico._id,
+          label: tecnico.username, // o el campo correcto
+        })));
+        console.log("technicians", technicians)
+      } catch (error) {
+        console.error("Error al cargar técnicos:", error);
+        mostrarToast("Error cargando técnicos", "error");
+      }
+      try {
+        const clientesData = await getClients();
+        setClients(clientesData.map((cliente) => ({
+          value: cliente._id,
+          label: cliente.nombre, // o el campo correcto
+        })));
+        console.log("clientes", clients)
+      } catch (error) {
+        console.error("Error al cargar clientes:", error);
+        mostrarToast("Error cargando  clientes", "error");
+      }
+    };
+  
+    fetchData();
+  }, []);  
+
+  // traer los datos reales del backend:
+  useEffect(() => {
+    const fetchScheduledVisits = async () => {
+      try {
+        const res = await fetch(`${API_URL}/calendar/events`);
+        const data = await res.json();
+        const formattedEvents = data.events.map(event => ({
+          id: event.id,
+          title: event.summary,
+          start: event.start.dateTime || event.start.date, // Asegúrate de que las fechas están correctas
+          end: event.end.dateTime || event.end.date,
+          description: event.description || "",
+          creator: event.creator?.email || "", // o el campo que necesites
+          color: "#1976D2", // O cualquier otro color dependiendo de la lógica
+        }));
+  
+        setCitas(formattedEvents); // setCitas debe tener el mismo formato
+      } catch (error) {
+        console.error("❌ Error al cargar eventos:", error);
+      }
+  };
+  fetchScheduledVisits();
+  }, []);   
+  
+  const handleEliminarCita = async () => {
+    if (eventoSeleccionado) {
+      const confirmacion = window.confirm("¿Seguro que deseas eliminar esta cita?");
+      if (!confirmacion) return;
+  
+      try {
+        const res = await fetch(`${API_URL}/calendar/delete-event/${eventoSeleccionado.id}`, {
+          method: "DELETE",
+        });
+  
+        if (!res.ok) {
+          throw new Error("Error al eliminar el evento desde el servidor.");
+        }
+  
+        // Eliminar del estado local
+        setCitas((prev) => prev.filter((cita) => cita.id !== eventoSeleccionado.id));
+        mostrarToast("Cita eliminada correctamente.", "success");
+      } catch (error) {
+        console.error("❌ Error al eliminar la cita:", error);
+        mostrarToast("No se pudo eliminar la cita. Intenta nuevamente.", "error");
+      } finally {
+        handleCloseModal();
+      }
+    }
+  };
+  
 
   // Cargar técnicos y clientes desde la base de datos
  /* useEffect(() => {
@@ -121,8 +166,6 @@ export default function CalendarioVisitas() { /*
       .catch(error => {
         console.error("Error al obtener técnicos", error);
       });  */
-
-      
 
               /*
     axios.get("/api/clientes")
@@ -167,9 +210,18 @@ export default function CalendarioVisitas() { /*
 
   const handleCloseModal = () => {
     setModalOpen(false);
-    resetNuevaCita();
+    // resetNuevaCita();
     setEventoSeleccionado(null);
     setModoEdicion(false);
+    setNuevaCita({
+      fecha: dayjs(),
+      horaInicio: dayjs(),
+      horaFin: dayjs().add(1, "hour"),
+      tecnicoNombre: "",
+      clienteNombre: "",
+      tipo: "Presupuesto",
+      direccion: "",
+    });
   };
 
   const resetNuevaCita = () => {
@@ -188,74 +240,127 @@ export default function CalendarioVisitas() { /*
     setToast({ open: true, message, severity });
   };
   
-  const handleGuardarCita = () => {
-    if (!nuevaCita.tecnicoNombre || !nuevaCita.clienteNombre || !nuevaCita.fecha) {
+  const handleGuardarCita = async () => {
+    if (!nuevaCita.tecnicoId || !nuevaCita.clienteId || !nuevaCita.fecha) {
       mostrarToast("Completa todos los campos obligatorios.", "error");
       return;
     }
-
+  
+    const tecnicoNombre = technicians.find(t => t.value === nuevaCita.tecnicoId)?.label || "";
+    const clienteNombre = clients.find(c => c.value === nuevaCita.clienteId)?.label || "";
+  
     const start = nuevaCita.fecha
       .hour(nuevaCita.horaInicio.hour())
       .minute(nuevaCita.horaInicio.minute())
       .second(0)
       .toISOString();
+  
     const end = nuevaCita.fecha
       .hour(nuevaCita.horaFin.hour())
       .minute(nuevaCita.horaFin.minute())
       .second(0)
       .toISOString();
-
+  
     if (modoEdicion && eventoSeleccionado) {
-      // Actualizar cita
-      setCitas(prev =>
-        prev.map(cita =>
-          cita.id === eventoSeleccionado.id
-            ? {
-                ...cita,
-                title: `${nuevaCita.tipo} - ${nuevaCita.clienteNombre}`,
-                start,
-                end,
-                extendedProps: {
-                  tecnicoNombre: nuevaCita.tecnicoNombre,
-                  tipo: nuevaCita.tipo,
-                  direccion: nuevaCita.direccion,
-                },
-                color: nuevaCita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
-              }
-            : cita
-        )
-      );
-      mostrarToast("Cita actualizada correctamente.");
+      // 🔄 Actualizar evento
+      try {
+        const res = await fetch(`/api/calendar/update-event/${eventoSeleccionado.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            summary: `${nuevaCita.tipo} - ${clienteNombre}`,
+            start,
+            end,
+            description: `Técnico: ${tecnicoNombre}\nDirección: ${nuevaCita.direccion}`,
+          }),
+        });
+  
+        const updatedEvent = await res.json();
+  
+        if (!res.ok) throw new Error(updatedEvent.message || "Error al actualizar evento.");
+  
+        setCitas((prev) =>
+          prev.map((cita) =>
+            cita.id === eventoSeleccionado.id
+              ? {
+                  id: updatedEvent.id,
+                  title: updatedEvent.summary,
+                  start: updatedEvent.start,
+                  end: updatedEvent.end,
+                  extendedProps: {
+                    tecnicoId: nuevaCita.tecnicoId,
+                    tecnicoNombre,
+                    clienteId: nuevaCita.clienteId,
+                    clienteNombre,
+                    direccion: nuevaCita.direccion,
+                    description: updatedEvent.description,
+                    creator: updatedEvent.creator?.email || "",
+                  },
+                  color: "#1976D2",
+                }
+              : cita
+          )
+        );
+  
+        mostrarToast("Cita actualizada correctamente.");
+      } catch (error) {
+        console.error("❌ Error actualizando evento:", error);
+        mostrarToast("No se pudo actualizar la cita.", "error");
+      }
     } else {
-      // Crear nueva cita
-      const nueva = {
-        id: String(Date.now()),
-        title: `${nuevaCita.tipo} - ${nuevaCita.clienteNombre}`,
-        start,
-        end,
-        extendedProps: {
-          tecnicoNombre: nuevaCita.tecnicoNombre,
-          tipo: nuevaCita.tipo,
-          direccion: nuevaCita.direccion,
-        },
-        color: nuevaCita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
-      };
-      setCitas(prev => [...prev, nueva]);
-      mostrarToast("Cita agendada correctamente.");
-    }
-
-    handleCloseModal();
-  };
-
-  const handleEliminarCita = () => {
-    if (eventoSeleccionado) {
-      if (window.confirm("¿Seguro que deseas eliminar esta cita?")) {
-        setCitas(prev => prev.filter(cita => cita.id !== eventoSeleccionado.id));
-        mostrarToast("Cita eliminada correctamente.");
-        handleCloseModal();
+      // ➕ Crear nuevo evento
+      try {
+        const res = await fetch("/api/calendar/create-event", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            summary: `${nuevaCita.tipo} - ${clienteNombre}`,
+            start,
+            end,
+            description: `Técnico: ${tecnicoNombre}\nDirección: ${nuevaCita.direccion}`,
+          }),
+        });
+  
+        const createdEvent = await res.json();
+  
+        if (!res.ok) throw new Error(createdEvent.message || "Error al crear evento.");
+  
+        setCitas((prev) => [
+          ...prev,
+          {
+            id: createdEvent.id,
+            title: createdEvent.summary,
+            start: createdEvent.start,
+            end: createdEvent.end,
+            extendedProps: {
+              tecnicoId: nuevaCita.tecnicoId,
+              tecnicoNombre,
+              clienteId: nuevaCita.clienteId,
+              clienteNombre,
+              direccion: nuevaCita.direccion,
+              description: createdEvent.description,
+              creator: createdEvent.creator?.email || "",
+            },
+            color: "#1976D2",
+          },
+        ]);
+  
+        mostrarToast("Cita agendada correctamente.");
+      } catch (error) {
+        console.error("❌ Error creando evento:", error);
+        mostrarToast("No se pudo crear la cita.", "error");
       }
     }
-  };
+  
+    handleCloseModal();
+  };  
+  
+
+  
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -298,7 +403,7 @@ export default function CalendarioVisitas() { /*
               gap: 2,
             }}
           >
-            <Typography variant="h6" component="h2">
+            <Typography variant="h6">
               {modoEdicion ? "Editar Visita" : "Nueva Visita"}
             </Typography>
 
@@ -320,31 +425,33 @@ export default function CalendarioVisitas() { /*
               onChange={(newValue) => setNuevaCita({ ...nuevaCita, horaFin: newValue })}
               sx={{ width: "100%" }}
             />
-
+            
             <TextField
-              label="Técnico"
-              value={nuevaCita.tecnicoNombre}
-              onChange={(e) => setNuevaCita({ ...nuevaCita, tecnicoNombre: e.target.value })}
+              label="👨‍🔧Técnico"
+              value={nuevaCita.tecnicoId}
+              onChange={(e) => setNuevaCita({ ...nuevaCita, tecnicoId: e.target.value })}
               required
               select
+              fullWidth
             >
-              {technicians.map((tecnico) => (
-                <MenuItem key={tecnico.value} value={tecnico.value}>
-                  {tecnico.label}
+              {technicians.map((t) => (
+                <MenuItem key={t.value} value={t.value}>
+                  {t.label}
                 </MenuItem>
               ))}
             </TextField>
-            
+
             <TextField
-              label="Cliente"
-              value={nuevaCita.clienteNombre}
-              onChange={(e) => setNuevaCita({ ...nuevaCita, clienteNombre: e.target.value })}
+              label="👤Cliente"
+              value={nuevaCita.clienteId}
+              onChange={(e) => setNuevaCita({ ...nuevaCita, clienteId: e.target.value })}
               required
               select
+              fullWidth
             >
-              {clients.map((cliente) => (
-                <MenuItem key={cliente.value} value={cliente.value}>
-                  {cliente.label}
+              {clients.map((c) => (
+                <MenuItem key={c.value} value={c.value}>
+                  {c.label}
                 </MenuItem>
               ))}
             </TextField>
@@ -372,6 +479,9 @@ export default function CalendarioVisitas() { /*
               )}
               <Button variant="contained" color="primary" onClick={handleGuardarCita}>
                 {modoEdicion ? "Actualizar" : "Guardar"}
+              </Button>
+              <Button onClick={handleCloseModal} variant="outlined">
+                Cerrar
               </Button>
             </Stack>
           </Box>

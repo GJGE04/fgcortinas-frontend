@@ -31,7 +31,7 @@ export const getClients = async () => {
   console.log('Cargando los clientes desde la API:');
   
   try {
-    const response = await axios.get(`${API_URL}/clients/getClient`, {
+    const response = await axios.get(`${API_URL}/clients`, {
       headers: getAuthHeader(),
     }); 
     return response.data
