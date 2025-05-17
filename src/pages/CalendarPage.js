@@ -51,22 +51,25 @@ export default function CalendarioVisitas() { /*
     const fetchData = async () => {
       try {
         const tecnicosData = await getTechnicians();
-        setTechnicians(tecnicosData.map((tecnico) => ({
+        const tecnicosFormateados = tecnicosData.map((tecnico) => ({
           value: tecnico._id,
-          label: tecnico.username, // o el campo correcto
-        })));
-        console.log("technicians", technicians)
+          label: tecnico.username,
+        }));
+        console.log("✅ Técnicos recibidos:", tecnicosFormateados);
+        setTechnicians(tecnicosFormateados);
       } catch (error) {
         console.error("Error al cargar técnicos:", error);
         mostrarToast("Error cargando técnicos", "error");
       }
       try {
         const clientesData = await getClients();
-        setClients(clientesData.map((cliente) => ({
+
+        const clientesFormateados = clientesData.map((cliente) => ({
           value: cliente._id,
-          label: cliente.nombre, // o el campo correcto
-        })));
-        console.log("clientes", clients)
+          label: cliente.nombre,
+        }));
+        console.log("✅ Clientes recibidos:", clientesFormateados);
+        setClients(clientesFormateados);
       } catch (error) {
         console.error("Error al cargar clientes:", error);
         mostrarToast("Error cargando  clientes", "error");
@@ -77,6 +80,7 @@ export default function CalendarioVisitas() { /*
   }, []);  
 
   // traer los datos reales del backend:
+  /* Version v1 donde 
   useEffect(() => {
     const fetchScheduledVisits = async () => {
       try {
@@ -99,24 +103,151 @@ export default function CalendarioVisitas() { /*
   };
   fetchScheduledVisits();
   }, []);   
+  */
+/*  version trayendo solo citas de la BD
+  useEffect(() => {
+    const fetchCitas = async () => {
+      try {
+        const res = await fetch(`${API_URL}/citas`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          }
+        });        
+        const data = await res.json();
+        console.log("📥 Datos crudos desde el backend:", data);
+
+        // CAMBIO AQUÍ 👇
+        const citasFormateadas = data.map((cita) => {
+          const tecnicoNombres = cita.tecnicos?.map(t => {
+            const tecnicoInfo = technicians.find(tec => tec.value === t._id);
+            return tecnicoInfo ? tecnicoInfo.label : "Técnico desconocido";
+          }).join(", ");
+        
+          return {
+            id: cita._id,
+            title: `${cita.tipo}${cita.cliente?.nombre ? " - " + cita.cliente.nombre : ""}`,
+            start: cita.fechaInicio,
+            end: cita.fechaFin,
+            extendedProps: {
+              direccion: cita.direccion,
+              tipo: cita.tipo,
+              tecnicoIds: cita.tecnicos?.map(t => t._id) || [],
+              tecnicoNombre: tecnicoNombres,
+              clienteNombre: cita.cliente?.nombre || "Sin cliente",
+            },
+            color: cita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
+          };
+        });   
+        console.log("✅ Citas formateadas para FullCalendar:", citasFormateadas);
+        setCitas(citasFormateadas);
+      } catch (error) {
+        console.error("❌ Error al cargar citas:", error);
+        mostrarToast("Error cargando citas", "error");
+      }
+    };
   
+    fetchCitas();
+  }, []);  */
+
+ /* v2 */
+  useEffect(() => {  // version trayendo citas y eventos
+    const fetchCitasYEventos = async () => {
+      try {
+        // 🔹 Obtener citas desde tu base de datos
+        const resCitas = await fetch(`${API_URL}/citas`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          }
+        });
+        const dataCitas = await resCitas.json();
+  
+        const citasFormateadas = dataCitas.map((cita) => {
+          const tecnicoNombres = cita.tecnicos?.map(t => {
+            const tecnicoInfo = technicians.find(tec => tec.value === t._id);
+            return tecnicoInfo ? tecnicoInfo.label : "Técnico desconocido";
+          }).join(", ");
+  
+          return {
+            id: cita._id,
+            title: `${cita.tipo}${cita.cliente?.nombre ? " - " + cita.cliente.nombre : ""}`,
+            start: cita.fechaInicio,
+            end: cita.fechaFin,
+            extendedProps: {
+              direccion: cita.direccion,
+              tipo: cita.tipo,
+              tecnicoIds: cita.tecnicos?.map(t => t._id) || [],
+              tecnicoNombre: tecnicoNombres,
+              clienteNombre: cita.cliente?.nombre || "Sin cliente",
+              source: "sistema", // 👈 Agregamos source para CRUD
+            },
+            color: cita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
+          };
+        });
+  
+        // 🔹 Obtener eventos desde Google Calendar
+        const resEventos = await fetch(`${API_URL}/calendar/events`);
+        const dataEventos = await resEventos.json();
+  
+        const eventosFormateados = dataEventos.events.map((event) => ({
+          id: event.id,
+          title: event.summary,
+          start: event.start.dateTime || event.start.date,
+          end: event.end.dateTime || event.end.date,
+          extendedProps: {
+            description: event.description || "",
+            source: "google",
+          },
+          color: "#43A047", // un color distinto para diferenciarlos
+        }));
+  
+        // 🔄 Fusionar los dos conjuntos de eventos
+        const eventosCombinados = [...citasFormateadas, ...eventosFormateados];
+  
+        // ✅ Setear en el estado único de eventos del calendario
+        setCitas(eventosCombinados);
+  
+        console.log("📆 Eventos combinados:", eventosCombinados);
+      } catch (error) {
+        console.error("❌ Error al cargar citas y eventos:", error);
+        mostrarToast("Error cargando eventos del calendario", "error");
+      }
+    };
+  
+    // fetchCitasYEventos();
+    // Asegurarnos de que `technicians` ya fue cargado
+    if (technicians.length > 0) {
+      fetchCitasYEventos();
+    }
+  }, [technicians]);
+
+  /*  eliminar solo de la bd
   const handleEliminarCita = async () => {
     if (eventoSeleccionado) {
       const confirmacion = window.confirm("¿Seguro que deseas eliminar esta cita?");
       if (!confirmacion) return;
   
       try {
-        const res = await fetch(`${API_URL}/calendar/delete-event/${eventoSeleccionado.id}`, {
+        const res = await fetch(`${API_URL}/citas/${eventoSeleccionado.id}`, {
           method: "DELETE",
-        });
-  
-        if (!res.ok) {
-          throw new Error("Error al eliminar el evento desde el servidor.");
-        }
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });    
+        
+        const result = await res.json();
+
+        if (!res.ok) throw new Error(result.message || "Error al eliminar la cita");
   
         // Eliminar del estado local
         setCitas((prev) => prev.filter((cita) => cita.id !== eventoSeleccionado.id));
-        mostrarToast("Cita eliminada correctamente.", "success");
+        // mostrarToast("Cita eliminada correctamente.", "success");
+        if (result.googleCalendarWarning) {
+          mostrarToast(result.message, "warning");
+        } else {
+          mostrarToast("Cita eliminada correctamente.", "success");
+        }
       } catch (error) {
         console.error("❌ Error al eliminar la cita:", error);
         mostrarToast("No se pudo eliminar la cita. Intenta nuevamente.", "error");
@@ -125,7 +256,60 @@ export default function CalendarioVisitas() { /*
       }
     }
   };
+  */
+
+  const handleEliminarCita = async () => {
+    if (!eventoSeleccionado) return;
   
+    const confirmacion = window.confirm("¿Seguro que deseas eliminar esta cita?");
+    if (!confirmacion) return;
+
+    const isGoogleEvent = eventoSeleccionado.extendedProps?.source === "google";
+  
+    try {
+      let res, result;
+
+      // 📍 2. Si es un evento de Google Calendar externo (quizás no está en la base de datos)
+      if (isGoogleEvent) {
+        // 🔁 Eliminar desde Google Calendar.    // 🔹 Evento solo en Google Calendar
+        res = await fetch(`${API_URL}/calendar/delete-event/${eventoSeleccionado.id}`, {
+          method: "DELETE",
+        });
+        result = await res.json();
+  
+        if (!res.ok) throw new Error(result.message || "Error al eliminar evento de Google Calendar");
+      } else {    // 📍 1. Si es una cita del sistema (base de datos)
+        // 🔁 Eliminar desde la base de datos (y opcionalmente también en Google)
+        res = await fetch(`${API_URL}/citas/${eventoSeleccionado.id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        result = await res.json();
+  
+        if (!res.ok) throw new Error(result.message || "Error al eliminar la cita");   // throw new Error("Error al eliminar el evento de Google Calendar");
+      }
+  
+      // 🧹 Eliminar del estado local
+      setCitas((prev) => prev.filter((cita) => cita.id !== eventoSeleccionado.id));
+      // mostrarToast("Evento de Google Calendar eliminado correctamente.", "success");
+  
+      // ✅ Mostrar mensaje según resultado
+      if (result.googleCalendarWarning) {
+        mostrarToast(`${result.message}`, "warning"); // o "info"
+        console.warn("⚠️ Advertencia:", result.error);
+      } else {
+        mostrarToast("✅ Cita eliminada correctamente.", "success");
+      }
+  
+    } catch (error) {
+      console.error("❌ Error al eliminar la cita:", error);
+      mostrarToast("No se pudo eliminar la cita. Intenta nuevamente.", "error");
+    } finally {
+      handleCloseModal();
+    }
+  };  
 
   // Cargar técnicos y clientes desde la base de datos
  /* useEffect(() => {
@@ -183,8 +367,10 @@ export default function CalendarioVisitas() { /*
       fecha: dayjs(info.dateStr),
       horaInicio: dayjs(info.dateStr).hour(9).minute(0),
       horaFin: dayjs(info.dateStr).hour(10).minute(0),
-      tecnicoNombre: "",
-      clienteNombre: "",
+      // tecnicoNombre: "",
+      // clienteNombre: "",
+      tecnicoId: "",
+      clienteId: "",
       tipo: "Presupuesto",
       direccion: "",
     });
@@ -240,6 +426,7 @@ export default function CalendarioVisitas() { /*
     setToast({ open: true, message, severity });
   };
   
+  /*
   const handleGuardarCita = async () => {
     if (!nuevaCita.tecnicoId || !nuevaCita.clienteId || !nuevaCita.fecha) {
       mostrarToast("Completa todos los campos obligatorios.", "error");
@@ -358,15 +545,195 @@ export default function CalendarioVisitas() { /*
   
     handleCloseModal();
   };  
-  
+  */
 
+  const handleGuardarCita = async () => {
+    if (!nuevaCita.tecnicoId || !nuevaCita.clienteId || !nuevaCita.fecha) {
+      mostrarToast("Completa todos los campos obligatorios.", "error");
+      return;
+    }
+
+    if (!nuevaCita.fecha || !nuevaCita.horaInicio || !nuevaCita.horaFin) {
+      mostrarToast("Faltan datos de fecha u hora", "error");
+      return;
+    }    
+  
+    const tecnicoNombre = technicians.find(t => t.value === nuevaCita.tecnicoId)?.label || "";
+    const clienteNombre = clients.find(c => c.value === nuevaCita.clienteId)?.label || "";
+
+    console.log("🕒 nuevaCita.fecha:", nuevaCita.fecha?.toString());
+    console.log("🕒 horaInicio:", nuevaCita.horaInicio?.toString());
+    console.log("🕒 horaFin:", nuevaCita.horaFin?.toString());
+  
+    const start = nuevaCita.fecha
+      .hour(nuevaCita.horaInicio.hour())
+      .minute(nuevaCita.horaInicio.minute())
+      .second(0)
+      .toISOString();
+  
+    const end = nuevaCita.fecha
+      .hour(nuevaCita.horaFin.hour())
+      .minute(nuevaCita.horaFin.minute())
+      .second(0)
+      .toISOString();
+  
+    if (modoEdicion && eventoSeleccionado) {
+      // 🔄 Actualizar evento
+      try {
+        const res = await fetch(`${API_URL}/citas/${eventoSeleccionado.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            direccion: nuevaCita.direccion,
+            telefono: "",
+            tipo: nuevaCita.tipo,
+            tecnicos: [nuevaCita.tecnicoId],
+            cliente: nuevaCita.clienteId,
+            fechaInicio: start,
+            fechaFin: end,
+            sincronizarGoogleCalendar: true, // ✅ ACTIVADO. // 🔁 Google Calendar también
+          }),
+        });        
+  
+        const updatedEvent = await res.json();
+  
+        if (!res.ok) throw new Error(updatedEvent.message || "Error al actualizar evento.");
+  
+        setCitas((prev) =>
+          prev.map((cita) =>
+            cita.id === eventoSeleccionado.id
+              ? {
+                  id: updatedEvent.id,
+                  // title: updatedEvent.summary,
+                  title: `${updatedEvent.cita.tipo} - ${updatedEvent.cita.cliente?.nombre || "Cliente"}`,
+                  // start: updatedEvent.start,
+                  // end: updatedEvent.end,
+                  start: updatedEvent.cita.fechaInicio,
+                  end: updatedEvent.cita.fechaFin,
+                  extendedProps: {
+                    tecnicoId: nuevaCita.tecnicoId,
+                    tecnicoNombre,
+                    clienteId: nuevaCita.clienteId,
+                    clienteNombre,
+                    // direccion: nuevaCita.direccion,
+                    // description: updatedEvent.description,
+                    direccion: updatedEvent.cita.direccion,
+                    description: updatedEvent.cita.descripcion || "",
+                    creator: updatedEvent.creator?.email || "",
+                  },
+                  color: "#1976D2",
+                }
+              : cita
+          )
+        );
+
+        if (updatedEvent.googleCalendarWarning) {
+          mostrarToast(updatedEvent.message, "warning");
+        } else {
+          mostrarToast("Cita actualizada correctamente.");
+        }
+  
+        // mostrarToast("Cita actualizada correctamente.");
+      } catch (error) {
+        console.error("❌ Error actualizando evento:", error);
+        mostrarToast("No se pudo actualizar la cita.", "error");
+      }
+    } else {
+      // ➕ Crear nuevo evento
+      try {
+        console.log("📤 Enviando al backend:", {
+          direccion: nuevaCita.direccion,
+          telefono: "",
+          tipo: nuevaCita.tipo,
+          tecnicos: [nuevaCita.tecnicoId],
+          cliente: nuevaCita.clienteId,
+          fechaInicio: start,
+          fechaFin: end,
+        });        
+        const res = await fetch(`${API_URL}/citas`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`, // si usás auth
+          },
+          body: JSON.stringify({
+            direccion: nuevaCita.direccion,
+            telefono: "", // opcional
+            tipo: nuevaCita.tipo,
+            tecnicos: [nuevaCita.tecnicoId],
+            cliente: nuevaCita.clienteId,
+            fechaInicio: start,
+            fechaFin: end,
+            sincronizarGoogleCalendar: true, // ✅ ACTIVADO
+          }),
+        });        
+  
+        const citaGuardada = await res.json();
+        console.log("🆕 Cita guardada en backend:", citaGuardada);
+  
+        if (!res.ok) throw new Error(citaGuardada.message || "Error al crear evento.");
+  
+        console.log("✅ Cita devuelta por el backend:", citaGuardada);
+        console.log("🛠️ Técnico:", tecnicoNombre, "Cliente:", clienteNombre);
+
+        setCitas((prev) => [
+          ...prev,
+          { /*
+            id: citaGuardada._id,
+            title: `${citaGuardada.tipo} - ${citaGuardada.cliente?.nombre || "Cliente"}`,
+            start: citaGuardada.fechaInicio,
+            end: citaGuardada.fechaFin,
+            extendedProps: {
+              tecnicoId: nuevaCita.tecnicoId,
+              tecnicoNombre,
+              clienteId: nuevaCita.clienteId,
+              clienteNombre,
+              direccion: citaGuardada.direccion,
+              description: "", // si no hay en backend
+              creator: "",     // si no hay en backend
+            }, 
+            color: citaGuardada.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",  */
+
+            id: citaGuardada.cita._id,
+    title: `${citaGuardada.cita.tipo} - ${citaGuardada.cita.cliente?.nombre || "Cliente"}`,
+    start: citaGuardada.cita.fechaInicio,
+    end: citaGuardada.cita.fechaFin,
+    extendedProps: {
+      tecnicoId: nuevaCita.tecnicoId,
+      tecnicoNombre,
+      clienteId: nuevaCita.clienteId,
+      clienteNombre,
+      direccion: citaGuardada.cita.direccion,
+      description: "", 
+    },
+    color: citaGuardada.cita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
+          },
+        ]);                 
+  
+        // mostrarToast("Cita agendada correctamente.");
+        if (citaGuardada.googleCalendarWarning) {
+          mostrarToast(citaGuardada.message, "warning");
+        } else {
+          mostrarToast("Cita agendada correctamente.");
+        }
+      } catch (error) {
+        console.error("❌ Error creando evento:", error);
+        mostrarToast("No se pudo crear la cita.", "error");
+      }
+    }
+  
+    handleCloseModal();
+  };  
   
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="p-4">
         <Typography variant="h4" mb={2}>
-          Calendario de VisitasA
+          Calendario de Visitas
         </Typography>
 
         <FullCalendar
@@ -573,4 +940,18 @@ useEffect(() => {
     fetchScheduledVisits();
   }, []); 
 
-  */
+  */  
+
+  /*
+  Aquí están las principales opciones para que elijas:
+
+✅ Crear una cita (base de datos + Google Calendar)
+
+📝 Actualizar una cita (y su evento en Google Calendar)
+
+🗑️ Eliminar una cita (y su evento en Google Calendar)
+
+📥 Leer/sincronizar eventos desde Google Calendar al sistema
+
+🔄 Sincronización cruzada (verificar diferencias y alinear datos)
+*/
