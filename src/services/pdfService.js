@@ -3,8 +3,9 @@ import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable'; // ✅ Esta SÍ importa y registra el plugin correctamente
 import logo from '../assets/logo.png'; // ⚠️ ajustá la ruta al logo. asegurate de importar la imagen como un módulo
 import QRCode from 'qrcode';
+import watermarkImage from '../assets/watermark_faint.jpeg'; // ✅ Marca de agua
 
-export const generatePDF = async (budgetData, shouldDownload = true) => {
+export const generatePDFV1 = async (budgetData, shouldDownload = true) => { // vcersion sin marca de agua 
     console.log("Generando pdf del presupuesto........", budgetData);
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -16,27 +17,68 @@ export const generatePDF = async (budgetData, shouldDownload = true) => {
             img.src = logo;
         
             img.onload = () => {
-                // 1. Logo
+
+              // 🔴 MARCA DE AGUA - FG CORTINAS v.1
+           /*   doc.setFont("helvetica", "bold");
+              doc.setFontSize(60);
+              doc.setTextColor(211, 47, 47); // Rojo (como color corporativo)
+              doc.text("FG CORTINAS", 35, 150, {
+                angle: 45, // Diagonal
+              }); */
+
+              // Marca de agua: "FG CORTINAS" v.2
+              /*
+doc.setFontSize(50);
+doc.setTextColor(220, 53, 69); // Rojo suave (puedes ajustar)
+doc.setTextColor(150);         // Gris claro (alternativa)
+
+// 🔁 Guardar estado antes de transformar
+doc.saveGraphicsState();
+
+// Rotar e imprimir en diagonal
+doc.setTextColor(200, 0, 0);
+doc.setFont("helvetica", "bold");
+doc.setFontSize(60);
+doc.setTextColor(211, 47, 47);  // Rojo corporativo
+
+// Aplica transformación para rotar el texto en diagonal
+doc.text("FG CORTINAS", 35, 150, {
+  angle: 45,                    // Rotación
+  opacity: 0.1,                 // No soportado directamente, se simula con color
+});
+
+// 🔁 Restaurar estado gráfico
+doc.restoreGraphicsState();
+*/
+
+            // 🔴 1. Logo.    // 🔹 Logo.  
             const logoWidth = 50;
             const logoHeight = 35;
             doc.addImage(img, 'PNG', 10, 10, logoWidth, logoHeight);
-                // 2. Encabezado
+
+            // 🔴 2. Encabezado
             doc.setFontSize(18);
+            doc.setTextColor(211, 47, 47); // Rojo fuerte (similar a #D32F2F)
             doc.text('Presupuesto: ' + budgetData.name, pageWidth / 2, 20, { align: 'center' });
-                // Línea divisoria
+
+            // 🔴 Línea divisoria
             const lineY = 10 + logoHeight + 5;                // 10 es la Y original, + alto del logo, + pequeño espacio
-            doc.setDrawColor(200);                            // gris claro
-            doc.setLineWidth(0.5);
+            // doc.setDrawColor(200);                            // gris claro
+            doc.setDrawColor(211, 47, 47);
+            doc.setLineWidth(0.8);  // 0.5
             doc.line(10, lineY, pageWidth - 10, lineY);       // Línea de borde a borde con margen de 10
         
+            // 🔴 3. Datos principales
             doc.setFontSize(12);
-            doc.setTextColor(100);
+            // doc.setTextColor(100);
+            doc.setTextColor(150, 0, 0); // Rojo oscuro
             doc.text(`Nombre: ${safeText(budgetData.name)}`, 10, lineY + 25);
             doc.text(`Cliente: ${safeText(budgetData.clienteName)}`, 10, lineY + 32);
             doc.text(`Técnico: ${safeText(budgetData.tecnicoName)}`, 10, lineY + 39);
             doc.text(`Dirección: ${safeText(budgetData.address)}`, 10, lineY + 46);
             doc.text(`Descripción: ${safeText(budgetData.description)}`, 10, lineY + 53);
-                // 3. Tabla con productos
+
+            // 🔴 4. Tabla con productos 
             const tableData = budgetData.products.map((product, index) => [
                 index + 1,
                 product.product,
@@ -57,25 +99,32 @@ export const generatePDF = async (budgetData, shouldDownload = true) => {
                 body: tableData,
                 startY: tableStartY,        // 80
                 styles: { fontSize: 10, cellPadding: 3 },
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center' },    // Azul corporativo
+                // headStyles: { fillColor: [41, 128, 185], textColor: 255, halign: 'center' },    // Azul corporativo
+                headStyles: { fillColor: [211, 47, 47], textColor: 255, halign: 'center' }, // 🔴 Rojo. // 🔴 rojo fuerte
                 bodyStyles: { halign: 'center' },
             });
-                // 4. Totales
+
+            // 🔴 5. Totales
             const finalY = doc.lastAutoTable.finalY || 80;
             doc.setFontSize(12);
-            doc.setTextColor(0);
+            // doc.setTextColor(0);
+            doc.setTextColor(211, 47, 47); // Rojo fuerte
             doc.text(`Total UYU: $${budgetData.totals.UYU}`, 10, finalY + 10);      // budgetData.totalUYU
             doc.text(`Total USD: $${budgetData.totals.USD}`, 10, finalY + 17);        // budgetData.totalUSD
-                // 5. Espacio para firma
+
+            // 6. Espacio para firma
             doc.setFontSize(11);
+            doc.setTextColor(0);
             doc.text('Firma del técnico:', 140, finalY + 35);
             doc.line(140, finalY + 37, 190, finalY + 37);         // Línea de firma
-                // 6. Footer con fecha
+
+           // 7. Footer con fecha
             const date = new Date().toLocaleDateString();
             doc.setFontSize(10);
             doc.setTextColor(120);
             doc.text(`Fecha de generación: ${date}`, 10, 285);   // Pie de página
-                // 7. Generar QR con información del presupuesto
+            
+            // 🔴 8. QR -  Generar QR con información del presupuesto
             const qrData = `
                 📄 Presupuesto: ${safeText(budgetData.name)}
                 🆔 ID: ${safeText(budgetData.id)}
@@ -97,9 +146,11 @@ export const generatePDF = async (budgetData, shouldDownload = true) => {
                 const qrSize = 50;
         
                 doc.addImage(url, 'PNG', qrX, qrY, qrSize, qrSize);
+
                 // Agregamos texto debajo del QR
                 doc.setFontSize(10);
-                doc.setTextColor(100);
+                // doc.setTextColor(100);
+                doc.setTextColor(150, 0, 0); // Rojo oscuro
                 doc.text('Escaneá para más info', qrX + qrSize / 2, qrY + qrSize + 6, { align: 'center' });
         
                 // Guardar el PDF
@@ -131,7 +182,197 @@ const safeText = (value, fallback = '-') => {
     return value !== undefined && value !== null && value !== '' ? value : fallback;
   };
   
+  // version con imagen de marca de agua
+  export const generatePDF = async (budgetData, shouldDownload = true) => {
+    console.log("BudgetData:", budgetData);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+  
+    return new Promise((resolve, reject) => {
+      const watermark = new Image();
+      watermark.src = watermarkImage;
+  
+      watermark.onload = () => {
+        // ✅ Marca de agua: fondo completo, translúcida
+        doc.addImage(watermark, 'JPEG', 0, 0, pageWidth, pageHeight, '', 'FAST');   // fondo completo
 
+        // 🔺 Encabezado principal
+        doc.setFontSize(13);
+        doc.setTextColor(80);
+        doc.text(`CLIENTE: ${safeText(budgetData.clienteName)}`, pageWidth / 2, 32, { align: 'center' });
+
+        // Fecha (centrado debajo)
+        const fecha = new Date().toLocaleDateString();
+        doc.text(`Fecha: ${fecha}`, pageWidth / 2, 39, { align: 'center' });
+
+        // 🔢 ID (alineado a la derecha)
+        const presupuestoId = `FGC-${new Date().getFullYear()}-${String(budgetData.id || 1).padStart(5, '0')}`;
+        doc.setFontSize(11);
+        doc.setTextColor(192, 0, 0); // rojo
+        doc.text(`N°: ${presupuestoId}`, pageWidth - 20, 25, { align: 'right' });
+
+        // 🔺 Línea divisoria roja
+        const lineY = 50;
+        doc.setDrawColor(200, 0, 0); // rojo
+        doc.setLineWidth(0.5);
+        doc.line(10, lineY, pageWidth - 10, lineY);
+
+        // 🔖 Subtítulo de tabla (centrado, rojo)
+        doc.setFontSize(12);
+        doc.setTextColor(192, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Presupuesto - ${safeText(budgetData.name)}`, pageWidth / 2, lineY + 10, { align: 'center' });
+        // doc.text(`Presupuesto - ${safeText(budgetData.clienteName)}`, 14, lineY + 10);
+
+        // 🔹 Tabla de productos
+        const tableStartY = lineY + 18;
+        const tableData = budgetData.products.map((product, index) => {
+          // const symbol = product.currency === 'USD' ? '$' : 'UYU';
+          return [
+            index + 1,
+            product.product,
+            product.quantity,
+            product.width || '-',
+            product.length || '-',
+            product.discount || 0,
+            // `${symbol} ${product.subtotal}`,
+            `${product.subtotal}`,
+          ];
+        });
+
+        autoTable(doc, {
+          head: [['#', 'Producto', 'Cantidad', 'Ancho', 'Largo', 'Descuento (%)', 'Subtotal']],
+          body: tableData,
+          startY: tableStartY,
+          theme: 'plain', // elimina bordes automáticos
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+            textColor: [0, 0, 0],
+            fillColor: false, // sin fondo
+          },
+          headStyles: {
+            fontStyle: 'bold',
+            textColor: [0, 0, 0],
+            fillColor: false, // sin fondo
+            halign: 'center',
+          },
+          bodyStyles: {
+            halign: 'center',
+            fillColor: false, // sin fondo
+          },
+          didDrawCell: (data) => {
+            if (data.section === 'body' || data.section === 'head') {
+              const { doc, cell } = data;
+              doc.setDrawColor(192, 0, 0); // rojo
+              doc.setLineWidth(0.5);
+              doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height); // línea inferior
+            }
+          },
+        });        
+
+        // 🔹 Totales finales (alineados a la derecha)
+      /*  const finalY = doc.lastAutoTable.finalY || 80;
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        const rightAlignX = pageWidth - 70;
+        // doc.text(`TOTAL FINAL EN UYU: $${budgetData.totals.UYU}`, pageWidth - 10, finalY + 10, { align: 'right' });
+        // doc.text(`TOTAL FINAL EN USD: $${budgetData.totals.USD}`, pageWidth - 10, finalY + 17, { align: 'right' });
+
+        
+        doc.text(`TOTAL FINAL EN UYU:`, rightAlignX, finalY + 10);
+        doc.text(`$${budgetData.totals.UYU}`, rightAlignX + 45, finalY + 10);
+
+        doc.text(`TOTAL FINAL EN USD:`, rightAlignX, finalY + 17);
+        doc.text(`$${budgetData.totals.USD}`, rightAlignX + 45, finalY + 17); */
+
+        // 🔹 Totales finales alineados con el borde derecho de la tabla
+const finalY = doc.lastAutoTable.finalY || 80;
+doc.setFontSize(12);
+doc.setTextColor(0);
+
+const marginRight = 10; // igual al margen de la tabla
+const textBlockWidth = 100; // ancho estimado para el texto descriptivo
+
+const amountX = pageWidth - marginRight; // monto alineado al borde derecho
+const labelX = amountX - textBlockWidth; // texto alineado a la izquierda del monto
+
+// Total UYU
+doc.text(`TOTAL FINAL EN UYU:`, labelX, finalY + 10, { align: 'left' });
+doc.text(`$${budgetData.totals.UYU}`, amountX, finalY + 10, { align: 'right' });
+
+// Total USD
+doc.text(`TOTAL FINAL EN USD:`, labelX, finalY + 17, { align: 'left' });
+doc.text(`$${budgetData.totals.USD}`, amountX, finalY + 17, { align: 'right' });
+
+/*
+
+        // 🔴 Sección de proceso del proyecto
+        const processTitleY = finalY + 30;
+        doc.setFontSize(12);
+        doc.setTextColor(192, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('PROCESO DEL PROYECTO', pageWidth / 2, processTitleY, { align: 'center' });
+
+        // 🔧 Icono de técnicos y cantidad (valor constante por ahora)
+        const iconsY = processTitleY + 30;
+        const colWidth = pageWidth / 3;
+
+        const drawIconWithText = (x, icon, label) => {
+          doc.setFontSize(20);
+          doc.text(icon, x + colWidth / 2, iconsY, { align: 'center' });
+
+          doc.setDrawColor(192, 0, 0);
+          doc.setLineWidth(0.5);
+          doc.roundedRect(x + colWidth / 2 - 10, iconsY + 5, 20, 10, 2, 2);
+          doc.setFontSize(10);
+          doc.setTextColor(0);
+          doc.text(label, x + colWidth / 2, iconsY + 13, { align: 'center' });
+        };
+
+        drawIconWithText(0, '👷', '2');
+        drawIconWithText(colWidth, '🪟', '6');
+        drawIconWithText(colWidth * 2, '⏱️', '5h'); */
+
+        // 🔹 Footer con fecha
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text(`Fecha de generación: ${fecha}`, 10, 285);
+
+        // 🔹 QR
+        const qrData = `
+        📄 Presupuesto: ${safeText(budgetData.name)}
+        🆔 ID: ${safeText(budgetData.id)}
+        👤 Cliente: ${safeText(budgetData.clienteName)}
+        🧑‍🔧 Técnico: ${safeText(budgetData.tecnicoName)}
+        💲 Total UYU: $${safeText(budgetData.totalUYU)}
+        💲 Total USD: $${safeText(budgetData.totalUSD)}
+        📍 Dirección: ${safeText(budgetData.address)}
+        📝 Descripción: ${safeText(budgetData.description)}
+        🔗 Ver online: https://miempresa.com/presupuestos/${safeText(budgetData.id)}
+        `;
+        
+                QRCode.toDataURL(qrData, { errorCorrectionLevel: 'H' }, (err, url) => {
+                  if (err) return reject(err);
+        
+                  doc.addImage(url, 'PNG', pageWidth - 60, 200, 50, 50);  // 220
+                  doc.setFontSize(10);
+                  doc.setTextColor(100);
+                  doc.text('Escaneá para más info', pageWidth - 35, 276, { align: 'center' });
+        
+                  if (shouldDownload) {
+                    doc.save(`${budgetData.name}.pdf`);
+                  }
+        
+                  const pdfBase64 = doc.output('datauristring');
+                  resolve(pdfBase64);
+                });
+              };
+
+        watermark.onerror = reject;
+    });
+  };
 
 export const generateBudgetPDF = async (work, products, totalUSD, totalUYU) => {
     const doc = new jsPDF();

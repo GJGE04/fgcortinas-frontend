@@ -109,6 +109,8 @@ const sendBudgetEmail3 = async ({ to, subject, body, attachment, filename }) => 
 
 
 export const sendPDFToBackend = async (pdfBase64, budgetData) => {
+
+    console.log("budgetData", budgetData);
     // 1. Convertir base64 a Blob
     const base64ToBlob = (base64Data) => {
       const byteString = atob(base64Data.split(',')[1]);
@@ -127,6 +129,9 @@ export const sendPDFToBackend = async (pdfBase64, budgetData) => {
     const formData = new FormData();
     formData.append('to', budgetData.email);   // <- ajustá de dónde viene el email  // || 'gjuniorge@gmail.com'
     formData.append('pdf', pdfBlob, `${budgetData.name}.pdf`);
+
+    formData.append('bodyHtml', '<strong>Este es el detalle del presupuesto solicitado...</strong>');
+    formData.append('cliente', budgetData.clienteName); 
 
     // ✉️ Armar los datos para el backend
     /*  Varios remitarios
