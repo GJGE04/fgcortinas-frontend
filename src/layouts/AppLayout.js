@@ -242,9 +242,9 @@ const AppLayout = ({ children }) => {
                   <Menu.Item key="8" icon={<DollarOutlined />}>
                     <Link to="/budgets">Presupuestos</Link>
                   </Menu.Item>
-                  <Menu.Item key="9" icon={<HistoryOutlined />}>
+                {/*  <Menu.Item key="9" icon={<HistoryOutlined />}>
                     <Link to="/old-works">Trabajos Antiguos</Link>
-                  </Menu.Item>
+                  </Menu.Item> */}
 
                   <Menu.Item key="10" icon={<CalendarOutlined />}>
                     <Link to="/calendar">Calendario</Link>

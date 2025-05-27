@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import "../css/CalendarioVisitas.css";
 import { useEffect } from "react";
 import { useMediaQuery } from "@mui/material";
-import { getTechnicians, getClients, getScheduledVisits } from "../services/apiService"; 
+import { getTechnicians, getClients, getScheduledVisits, createCalendarEvent } from "../services/apiService"; 
 
 export default function CalendarioVisitas() { /*
   const [citas, setCitas] = useState([
@@ -711,11 +711,18 @@ export default function CalendarioVisitas() { /*
     },
     color: citaGuardada.cita.tipo === "Presupuesto" ? "#1976D2" : "#D32F2F",
           },
-        ]);                 
+        ]);       
+        
+        console.log("Parametos de createCalendarEvent2", [nuevaCita.tecnicoId], start, end);
+        console.log("start", start);
+        console.log("end", end);
+        console.log("tecnicoId", [nuevaCita.tecnicoId]);
+        // createCalendarEvent2([nuevaCita.tecnicoId], start, end);
+        handleCreateEvent();
   
         // mostrarToast("Cita agendada correctamente.");
-        if (citaGuardada.googleCalendarWarning) {
-          mostrarToast(citaGuardada.message, "warning");
+        if (citaGuardada.googleCalendarWarning) {             // verificar si funciona el googleCalendarWarning
+          mostrarToast(citaGuardada.message, "warning");   
         } else {
           mostrarToast("Cita agendada correctamente.");
         }
@@ -727,6 +734,65 @@ export default function CalendarioVisitas() { /*
   
     handleCloseModal();
   };  
+
+  const createCalendarEvent2 = async () => { // quote   //   technicianId, start, end
+    // console.log("Entrando en createCalendarEvent2: " , technicianId, start, end);
+    // const tecnicoSeleccionadoId = technicianId;
+    // const tecnicoSeleccionado = technicians.find(t => t.value === tecnicoSeleccionadoId);
+    // const tecnicoName = tecnicoSeleccionado?.label || 'Sin técnico';
+    // console.log("Tecnico: " , tecnicoName);      
+    try{
+      // (technicians.find(t => t.value === form.getFieldValue('technicianId')))?.label || 'Sin técnico'
+      const eventData = {
+        summary: 'Cita técnica',     // summary: `Visita técnica - ${clientName}`,
+        // description: 'Agendada desde el formulario completo de FG Cortinas',
+        description: `Visita técnica agendada.`, // `Visita técnica agendada para el cliente:, atendida por el técnico: ${tecnicoName}.`, //  ${client.name}
+        // description: `Visita técnica para el cliente ${values.nombreCliente || 'sin nombre'}`,
+        start: '2025-05-23T10:00:00',
+        end: '2025-05-23T12:00:00',
+      };
+      console.log("eventData: " , eventData);
+      // await axios.post('/api/calendar/create-event', eventData);  
+      const result = await fetch(`${API_URL}/calendar/create-event`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      });
+      
+      if (!result.ok) {
+        throw new Error(`Error HTTP: ${result.status}`);
+      }
+      
+      const data = await result.json();
+      console.log('✅ Evento agendado:', data);
+      
+      // console.log('✅ Evento agendado:', result.data);
+    }
+    catch (error) {
+      console.error('❌ Error al agendar visita:', error);
+      // message.error('No se pudo agendar la visita técnica');
+      return; // Evitamos continuar si falla
+    }
+  };
+
+  const handleCreateEvent = async () => {
+    const newEvent = {
+      summary: "Reunión de equipo1205",
+      description: "Reunión semanal de seguimiento",
+      start: "2025-05-21T10:00:00",
+      end: "2025-05-21T13:00:00"
+    };
+
+    try {
+      const result = await createCalendarEvent(newEvent);
+      console.log("Evento creado:", result.event.htmlLink);
+    } catch (err) {
+      // Ya se maneja error en el servicio, pero podés hacer algo extra acá
+    }
+  };
+
   
 
   return (

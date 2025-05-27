@@ -1,18 +1,20 @@
+// Este componente contiene el formulario con los campos de cliente, dirección, teléfono, técnicos, tipo y estado.
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Select, message, DatePicker, TimePicker, Switch, Row, Col } from 'antd';
+import { Form, Button, Select, message, Row, Col } from 'antd';  // Input, DatePicker, TimePicker, Switch, 
 import axios from 'axios';
 import moment from 'moment';
 
 const { Option } = Select;
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api'; 
 
-const WorkForm = ({ token, editingItem, onCreate }) => {
+const WorkForm = ({ token, editingItem, onCreate, onCancel }) => {
   const [form] = Form.useForm();
   const [tipos, setTipos] = useState([]);  // Para los valores posibles de 'tipo'
   const [estados, setEstados] = useState([]);  // Para los valores posibles de 'estado'
   const [clientes, setClientes] = useState([]);  // Para los valores posibles de 'cliente'
   const [tecnicos, setTecnicos] = useState([]); // Para los valores posibles de 'tecnicos'
-  const [hasTimeRange, setHasTimeRange] = useState(false); // Estado para el rango horario
+  // const [hasTimeRange, setHasTimeRange] = useState(false); // Estado para el rango horario
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
 
   // Cargar tipos, estados y clientes desde el backend
   useEffect(() => {
@@ -22,23 +24,26 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
         const responseOptions = await axios.get(`${API_URL}/works/work-options`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        setTipos(responseOptions.data.tipo);  // Guardamos los tipos
-        setEstados(responseOptions.data.estado);  // Guardamos los estados
+        console.log('Opciones de trabajo:', responseOptions.data); 
 
         // Cargar clientes desde /api/clients
         const responseClientes = await axios.get(`${API_URL}/clients`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        setClientes(responseClientes.data);  // Guardamos los clientes
+        console.log('Clientes:', responseClientes.data);
 
         // Cargar técnicos desde /api/users (o la ruta correspondiente)
         const responseTecnicos = await axios.get(`${API_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log('Usuarios:', responseTecnicos.data);
 
-        setTecnicos(responseTecnicos.data);  // Guardamos los técnicos
+        // Luego de obtener los datos, seteás los estados:
+        setTipos(responseOptions.data.tipo);          // Guardamos los tipos
+        setEstados(responseOptions.data.estado);      // Guardamos los estados
+        setClientes(responseClientes.data);         	// Guardamos los clientes
+        // setTecnicos(responseTecnicos.data.filter(user => user.role === 'TECNICO')); // Guardamos los técnicos
+        setTecnicos(responseTecnicos.data.filter(user => user.role === 'Tecnico')); // coincidir con el string real
 
       } catch (error) {
         console.error(error);
@@ -51,11 +56,13 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
 
   useEffect(() => {
     if (editingItem) {
-      form.setFieldsValue({
+      setClienteSeleccionado(editingItem.cliente); // 👈 importante
+    /*  form.setFieldsValue({
         cliente: editingItem.cliente._id,
-        tecnico: editingItem.tecnico._id, // Asumimos que el técnico es un solo objeto
-        direccion: editingItem.direccion[0],  // Suponiendo que dirección es un array
-        telefonos: editingItem.telefonos[0],  // Suponiendo que teléfonos es un array
+        // tecnico: editingItem.tecnico._id, // Asumimos que el técnico es un solo objeto
+        tecnicos: editingItem.tecnicos.map(t => t._id),
+        // direccion: editingItem.direccion[0],  // Suponiendo que dirección es un array
+        // telefonos: editingItem.telefonos[0],  // Suponiendo que teléfonos es un array
         tipo: editingItem.tipo,
         estado: editingItem.estado,
         fechaCreacion: moment(editingItem.fechaCreacion),
@@ -64,16 +71,32 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
         fechaFinalizacion: moment(editingItem.fechaFinalizacion),
         horaComienzo: moment(editingItem.horaComienzo, 'HH:mm'),
         horaFinalizacion: moment(editingItem.horaFinalizacion, 'HH:mm'),
-      });
+      }); */
+      form.setFieldsValue({
+        ...editingItem,
+        cliente: editingItem.cliente?._id,
+        tecnicos: editingItem.tecnicos?.map(t => t._id) || [],
+        direccion: editingItem.direccion?.[0] || '',
+        telefonos: editingItem.telefonos?.[0] || '',
+        tipo: editingItem.tipo || '',
+        estado: editingItem.estado || '',
+        // fechaCreacion: editingItem.fechaCreacion ? moment(editingItem.fechaCreacion) : null,
+        // fechaUltimoEstado: editingItem.fechaUltimoEstado ? moment(editingItem.fechaUltimoEstado) : null,
+        fechaComienzo: editingItem.fechaComienzo ? moment(editingItem.fechaComienzo) : null,
+        fechaFinalizacion: editingItem.fechaFinalizacion ? moment(editingItem.fechaFinalizacion) : null,
+        horaComienzo: editingItem.horaComienzo ? moment(editingItem.horaComienzo, 'HH:mm') : null,
+        horaFinalizacion: editingItem.horaFinalizacion ? moment(editingItem.horaFinalizacion, 'HH:mm') : null,
+      });      
     }
   }, [editingItem, form]);
 
   const handleSubmit = async (values) => {
+    console.log('Valores del formulario:', values);
     // Aseguramos que fechaCreacion sea un objeto Date antes de intentar convertirlo a ISO
     const formattedValues = {
       ...values,
-      fechaCreacion: values.fechaCreacion ? moment(values.fechaCreacion).toISOString() : null,
-      fechaUltimoEstado: values.fechaUltimoEstado ? moment(values.fechaUltimoEstado).toISOString() : null,
+      // fechaCreacion: values.fechaCreacion ? moment(values.fechaCreacion).toISOString() : null,
+      // fechaUltimoEstado: values.fechaUltimoEstado ? moment(values.fechaUltimoEstado).toISOString() : null,
       fechaComienzo: values.fechaComienzo ? moment(values.fechaComienzo).toISOString() : null,
       fechaFinalizacion: values.fechaFinalizacion ? moment(values.fechaFinalizacion).toISOString() : null,
       horaComienzo: values.horaComienzo ? values.horaComienzo.format('HH:mm') : null,
@@ -106,7 +129,21 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
             name="cliente"
             rules={[{ required: true, message: 'Selecciona un cliente' }]}
           >
-            <Select placeholder="Selecciona un cliente">
+            <Select 
+              placeholder="Selecciona un cliente"
+              onChange={(clienteId) => {
+                const cliente = clientes.find(c => c._id === clienteId);
+                setClienteSeleccionado(cliente || null);
+
+                // Si el cliente tiene direcciones o teléfonos, los seteamos como primeros valores por defecto
+                if (cliente) {
+                  form.setFieldsValue({
+                    direccion: cliente.direcciones?.[0] || '',
+                    telefonos: cliente.telefonos?.[0] || ''
+                  });
+                }
+              }}
+            >
               {clientes.length > 0 ? (
                 clientes.map((cliente) => (
                   <Option key={cliente._id} value={cliente._id}>
@@ -122,10 +159,10 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
         
         <Col span={12}>
           <Form.Item
-            label="Técnico"
-            name="tecnico"
-            rules={[{ required: true, message: 'Selecciona un técnico' }]}>
-            <Select placeholder="Selecciona un técnico">
+            label="Técnicos"
+            name="tecnicos"
+            rules={[{ required: true, message: 'Selecciona al menos un técnico' }]}>
+            <Select placeholder="Selecciona uno o más técnicos" mode="multiple">
               {tecnicos.length > 0 ? (
                 tecnicos.map((tecnico) => (
                   <Option key={tecnico._id} value={tecnico._id}>
@@ -139,26 +176,52 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
           </Form.Item>
         </Col>
         </Row>
-
-      <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item
-            label="Dirección"
-            name="direccion"
-            rules={[{ required: true, message: 'Ingresa una dirección' }]}>
-            <Input />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
-            label="Teléfonos"
-            name="telefonos"
-            rules={[{ required: true, message: 'Ingresa un teléfono' }]}>
-            <Input />
-          </Form.Item>
-        </Col>
-      </Row>
-
+  {/*    {clienteSeleccionado && (        */}
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label= "Direcciones del Cliente"  // "Dirección"
+              name="direccion"
+              // rules={[{ required: true, message: 'Ingresa una dirección' }]}
+            >
+              {/*<Input />*/}
+              <Select // disabled 
+                      placeholder="Dirección del cliente"
+                      defaultValue={clienteSeleccionado?.direcciones?.[0]}
+              >
+                {clienteSeleccionado?.direcciones?.length > 0 ? (
+                  clienteSeleccionado.direcciones.map((dir, i) => (
+                    <Option key={i} value={dir}>{dir}</Option>
+                  ))
+                ) : (
+                  <Option disabled value="no-dir">No hay direcciones</Option>
+                )}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="Teléfonos del Cliente"
+              name="telefonos"
+              // rules={[{ required: true, message: 'Ingresa un teléfono' }]}
+              >
+              {/*<Input />*/}
+              <Select // disabled 
+                      placeholder="Teléfono del cliente"
+                      defaultValue={clienteSeleccionado?.telefonos?.[0]}>
+                {clienteSeleccionado?.telefonos?.length > 0 ? (
+                  clienteSeleccionado.telefonos.map((tel, i) => (
+                    <Option key={i} value={tel}>{tel}</Option>
+                  ))
+                ) : (
+                  <Option disabled value="no-tel">No hay teléfonos</Option>
+                )}
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+  {/*    )}  */}
+      {/* Tipos y Estado */}
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -177,6 +240,15 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
                 <Option value="">Cargando tipos...</Option>
               )}
             </Select>
+{/* otra forma de uso si la api retorna en formato Key - Value
+            <Select>
+  {tipos.map(op => (
+    <Option key={op.key} value={op.value}>
+      {op.value}
+    </Option>
+  ))}
+</Select>
+*/}
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -221,6 +293,8 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
         </Col>
       </Row>
 */}
+
+{/*  // Esta parte del código es para la versión de seleccionar las fechas de comienzo y finalización del trabajo, así como el rango horario.
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
@@ -270,7 +344,8 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
           </Row>
         </>
       )}
-
+*/}
+      {/* Botones */}
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item>
@@ -280,16 +355,19 @@ const WorkForm = ({ token, editingItem, onCreate }) => {
           </Form.Item>
         </Col>
         <Col span={12}>
-          {editingItem && (
+        {/*  {editingItem && ( */}
             <Form.Item>
               <Button
-                onClick={() => form.resetFields()}
+                onClick={() => {
+                  form.resetFields();
+                  if (onCancel) onCancel(); // Llama a la función del padre para cerrar el form
+                }}
                 style={{ marginLeft: 8 }}
               >
                 Cancelar
               </Button>
             </Form.Item>
-          )}
+        {/*  )} */}
         </Col>
       </Row>
     </Form>

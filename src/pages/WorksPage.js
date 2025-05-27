@@ -1,3 +1,4 @@
+// Este componente maneja la visibilidad del formulario y la lógica para abrirlo en modo edición o creación.
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Popconfirm, message, Switch, Modal, Select, Space } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -16,6 +17,7 @@ const WorkPage = () => {
   const [isWorkModalOpen, setIsWorkModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [selectedWork, setSelectedWork] = useState(null);
+  // const [showForm, setShowForm] = useState(false);    // estado para mostrar/ocultar el formulario Add/Edit Work.
 
   const token = localStorage.getItem('token'); // Obtener el token de localStorage
 
@@ -59,7 +61,12 @@ const WorkPage = () => {
       }
     };
 */
+  // console.log('Token desde localStorage:', token); // 👈 Agregá esta línea
+  if (token) {
     fetchWorks();
+  }
+
+  //  fetchWorks();
   }, [token]);
 
   const fetchWorks = async () => {
@@ -68,24 +75,28 @@ const WorkPage = () => {
       const { data } = await axios.get(`${API_URL}/works`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('Trabajos recibidos desde el backend:', data); // 👈 Agregá esta línea
 
       const enrichedWorks = await Promise.all(data.map(async (work) => {
         let clienteNombre = 'Cliente no encontrado';
+        let telefonosCliente = [];
         if (work.cliente?._id) {
           try {
             const clientRes = await axios.get(`${API_URL}/clients/search/${work.cliente._id}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             clienteNombre = clientRes.data?.nombre || clienteNombre;
+            telefonosCliente = clientRes.data?.telefonos || [];
           } catch (err) {
-            console.warn('Error al buscar cliente:', err.message);
+            console.warn('⚠️ Error al buscar cliente:', err.message);
           }
         }
-        return { ...work, clienteNombre };
+        return { ...work, clienteNombre, telefonos: telefonosCliente };
       }));
 
       setWorks(enrichedWorks);
     } catch (err) {
+      console.error('❌ Error en fetchWorks:', err); // 👈 Agregá esto
       message.error('Error al cargar trabajos');
     } finally {
       setLoading(false);
@@ -159,7 +170,7 @@ const WorkPage = () => {
       dataIndex: 'clienteNombre',  // Ahora estamos usando el nuevo campo que tiene el nombre del cliente
       key: 'clienteNombre',
     },
-    {
+    /*{
       title: 'Dirección',
       dataIndex: 'direccion',
       key: 'direccion',
@@ -176,12 +187,18 @@ const WorkPage = () => {
           <span>{direccion[0]}</span>
         )
       ),
-    },
+    },*/
+    {
+      title: 'Dirección',
+      key: 'direccion',
+      render: (record) =>
+        record.cliente?.direcciones?.[0] || 'No disponible'
+    },    
     {
       title: 'Teléfonos',
       dataIndex: 'telefonos',
       key: 'telefonos',
-      render: (telefonos) => (
+      render: (telefonos = []) => (
         telefonos.length > 1 ? (
           <Select defaultValue={telefonos[0]} style={{ width: 200 }}>
             {telefonos.map((telefono, index) => (
@@ -191,7 +208,7 @@ const WorkPage = () => {
             ))}
           </Select>
         ) : (
-          <span>{telefonos[0]}</span>
+          <span>{telefonos[0] || '-'}</span>
         )
       ),
     },
@@ -309,6 +326,8 @@ const WorkPage = () => {
           // onCreate={handleCreate}  // Pasamos la función para guardar cambios
           editingItem={selectedWork}
           onCreate={saveWork}
+          // onCancel={() => setShowForm(false)} // <- esta función cierra el form
+          onCancel={closeWorkModal}
         />
       </Modal>
 
@@ -342,11 +361,58 @@ const WorkPage = () => {
           onClose={() => setIsBudgetModalOpen(false)}
         />
       </Modal>
-    
-    
-    
     </div>
   );
 };
 
 export default WorkPage;
+
+/*
+Variantes de direcciones y telefonos:
+
+✅ Opción 1: Acceder directamente desde cliente (como haces con direcciones)
+jsx
+Copiar
+Editar
+render: (record) =>
+  record.cliente?.telefonos?.[0] || '-'
+✔ Pros:
+Menos código en el backend/frontend: No necesitas enriquecer el objeto work manualmente.
+
+Accede siempre a los datos más actualizados del cliente.
+
+❌ Contras:
+Depende de que cliente esté correctamente populate() o enriquecido.
+
+Si el cliente cambia en el futuro, verás datos "dinámicos", no un snapshot del momento del trabajo.
+
+✅ Opción 2: Copiar datos del cliente a work al momento de creación/modificación (como haces con telefonos actualmente)
+js
+Copiar
+Editar
+// Ejemplo al crear o editar un trabajo:
+{
+  ...,
+  telefonos: cliente.telefonos,
+}
+✔ Pros:
+Guarda un snapshot histórico del cliente en el momento del trabajo.
+
+Útil si los datos del cliente pueden cambiar (ej: cambia número o dirección).
+
+❌ Contras:
+Duplica información.
+
+Puede volverse inconsistente si no manejás bien la sincronización.
+
+🏁 Recomendación
+Depende del contexto de tu aplicación:
+
+Objetivo	Recomendación
+Mostrar SIEMPRE los datos actuales del cliente	Acceder desde cliente
+Mostrar un snapshot de cómo era el cliente cuando se creó el trabajo	Copiar datos a work (tu enfoque actual con telefonos)
+
+📌 Para una app de gestión de trabajos, lo más común es mantener el snapshot, porque los presupuestos, trabajos o facturas deben reflejar cómo eran las condiciones al momento de su creación.
+
+
+*/

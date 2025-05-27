@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Table, Button, Popconfirm, message, Modal, Form, Input, Select, Switch } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import debounce from 'lodash.debounce';
 
 const { Option } = Select;
 
@@ -17,6 +18,7 @@ const UsersPage2 = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ username: "", role: "" });
   const [sortedInfo, setSortedInfo] = useState({});
+  const [availableRoles, setAvailableRoles] = useState([]);
 
 /*
   const ROLES = {
@@ -33,7 +35,25 @@ const UsersPage2 = () => {
   const token = localStorage.getItem('token');
 
   // Lista de roles disponibles (podrías también traerla desde el backend si prefieres)
-  const availableRoles = ['Superadmin', 'Admin', 'Vendedor', 'Editor', 'Guest', 'Tecnico'];  // Ejemplo de roles, estos roles pueden cambiar según tus necesidades
+  // const availableRoles = ['Superadmin', 'Admin', 'Vendedor', 'Editor', 'Guest', 'Tecnico'];  // Ejemplo de roles, estos roles pueden cambiar según tus necesidades
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        // const { data } = await axios.get(`${API_URL}/roles`, {
+        const { data } = await axios.get(`${API_URL}/roles/available`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // setAvailableRoles(data.roles);
+        setAvailableRoles(data); // [{ value: "tecnico", label: "Técnico" }, ...]
+      } catch (error) {
+        console.error('Error al cargar los roles:', error);
+      }
+    };
+
+    fetchRoles();
+  }, [token]); 
+  // }, []);
 
   // Función para obtener los usuarios de la API
   const fetchUsuarios = async () => {
@@ -154,10 +174,17 @@ const UsersPage2 = () => {
         return;
       }
 
+      // 🔽 Normalizamos el email
+      if (values.email) {
+        values.email = values.email.trim().toLowerCase();
+      }
+
+      let response;
+
       if (isCreating) {
         // Crear un nuevo usuario
         console.log("Creando un nuevo usuario con valores:", values);  
-        const response = await axios.post(`${API_URL}/users`, values, {
+        response = await axios.post(`${API_URL}/users`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -174,7 +201,7 @@ const UsersPage2 = () => {
       } else {
         // Actualizar un usuario existente
         console.log("Actualizando usuario con ID:", editingUser._id);
-        const response = await axios.put(`${API_URL}/users/${editingUser._id}`, values, {
+        response = await axios.put(`${API_URL}/users/${editingUser._id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -196,7 +223,22 @@ const UsersPage2 = () => {
       //setEditingUser(null);
     } catch (error) {
       console.error("Error al guardar el usuario:", error);
-      message.error('Error al guardar el usuario');
+    /*  if (error.response && error.response.data && error.response.data.message) {
+        message.error(error.response.data.message); // Muestra el mensaje del backend
+      } else {
+        message.error('Error al guardar el usuario');
+      } */
+       // Mostrar error específico si es por email duplicado
+      if (
+        error.response &&
+        error.response.status === 400 &&
+        error.response.data &&
+        error.response.data.message === 'El email ya está registrado por otro usuario'
+      ) {
+        message.error('El email ya está registrado por otro usuario');
+      } else {
+        message.error('Error al guardar el usuario');
+      }
     }
   };
 
@@ -293,6 +335,33 @@ const UsersPage2 = () => {
   const handleTableChange = (pagination, filters, sorter) => {
     setSortedInfo(sorter);
   };  
+/*
+  const formatRoleLabel = (role) =>
+    role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(); */
+/*
+  const roleLabels = {
+    superadmin: 'Superadmin',
+    admin: 'Admin',
+    editor: 'Editor',
+    vendedor: 'Vendedor',
+    tecnico: 'Técnico',
+    guest: 'Invitado',
+  }; */
+
+  const checkEmailExists = debounce(async (email, callback) => {
+    try {
+      const response = await axios.get(`${API_URL}/users/check-email/${email}`);
+      if (response.data.exists) {
+        callback('El email ya está registrado');
+      } else {
+        callback(); // todo bien
+      }
+    } catch (error) {
+      console.error('Error verificando el email:', error);
+      callback('No se pudo verificar el email');
+    }
+  }, 500); // 500ms de retardo
+  
 
   return (
     <div>
@@ -330,7 +399,7 @@ const UsersPage2 = () => {
           columns={columns}
           dataSource={applyFilters(usuarios)}
           rowKey="_id"
-          pagination={{ pageSize: 5 }}
+          pagination={{ pageSize: 10 }}
           onChange={handleTableChange}
         />
       )}
@@ -355,7 +424,30 @@ const UsersPage2 = () => {
           <Form.Item
             name="email"
             label="Email"
-            rules={[{ required: true, message: 'Por favor ingrese el email' }]}
+            rules={[
+              { required: true, message: 'Por favor ingrese el email' },
+              { type: 'email', message: 'Formato de email no válido' },
+              {
+                validator: (_, value) =>
+                  new Promise((resolve, reject) => {
+                    if (!value) return resolve();
+
+                    const normalizedValue = value.trim().toLowerCase();
+                    const originalEmail = editingUser?.email?.toLowerCase();
+
+                    if (!isCreating && normalizedValue === originalEmail) {
+                      return resolve(); // no se ha cambiado el email
+                    }
+                    checkEmailExists(value, (errorMessage) => {
+                      if (errorMessage) {
+                        reject(errorMessage);
+                      } else {
+                        resolve();
+                      }
+                    });
+                  }),
+              },
+            ]}
           >
             <Input />
           </Form.Item>
@@ -377,9 +469,24 @@ const UsersPage2 = () => {
             rules={[{ required: true, message: 'Por favor seleccione el rol' }]}
           >
             <Select placeholder="Seleccionar rol">
+              {/*
               {availableRoles.map((role) => (
-                <Option key={role} value={role}>{role}</Option>
+                <Option key={role} value={role}>{role}</Option>  // {formatRoleLabel(role)}
               ))}
+               */}
+               {/*
+               {Object.entries(roleLabels).map(([value, label]) => (
+                  <Option key={value} value={value}>
+                    {label} {/* ✅ Esto es texto, no un objeto */} {/*
+                  </Option>
+                ))} */}
+                {/*  */}
+                {availableRoles.map((role) => (
+                  <Option key={role.value} value={role.value}>
+                    {role.label}
+                  </Option>
+                ))}
+                
             </Select>
           </Form.Item>
         </Form>

@@ -1,92 +1,91 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { Form, Input, Button, Row, Col, message, Space, Modal, Checkbox, Collapse, Tooltip } from "antd";
-import { PlusOutlined, DeleteOutlined, LoadingOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
+// import axios from "axios";
+import { Form, Button, Row, Col, message, Space, Modal, Checkbox, Collapse, Tooltip } from "antd";  // Input, 
+import { PlusOutlined, LoadingOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';      // DeleteOutlined, 
 import "jspdf-autotable";  // Asegúrate de importar el plugin de autoTable
 import { notification } from 'antd';
-
-import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Tema de PrimeReact
-import 'primereact/resources/primereact.min.css';  // Estilos generales de PrimeReact
-import 'primeicons/primeicons.css';  // Iconos de PrimeReact
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';   // Tema de PrimeReact
+import 'primereact/resources/primereact.min.css';                   // Estilos generales de PrimeReact
+import 'primeicons/primeicons.css';                                 // Iconos de PrimeReact
 // import ProductsPanel from './components/BudgetForm/ProductsPanel';
-import ProductsPanel from './BudgetForm/ProductsPanel'; //arreglar url en verison final
+import ProductsPanel from './BudgetForm/ProductsPanel';             // arreglar url en verison final
 import SchedulePanel from './BudgetForm/VisitSchedulingPanel';
 import GeneralDataPanel from './BudgetForm/GeneralDataPanel';
-import ResumenPanel from './BudgetForm/ResumenPanel'; // ajusta el path si es necesario
+import ResumenPanel from './BudgetForm/ResumenPanel';               // ajusta el path si es necesario
 import EventModal from './BudgetForm/EventModal'; 
-
 import { getProducts } from "../api/productApi"; 
 import { getTechnicians } from "../services/apiService";  
-
-import { generatePDF } from '../services/pdfService'; // ajustá la ruta si es necesario
+import { generatePDF } from '../services/pdfService';               // ajustá la ruta si es necesario
 import { sendPDFToBackend } from "../services/emailService"; 
 import { createBudget } from "../services/budgetService";
 // import { sendWhatsAppMessage } from '../services/whatsappService';
 import { calculateSubtotal } from "../utils/calculos";  
+import "../css/CalendarioVisitas.css";
 
 // import { useCallback } from "react";    // useCallback es un hook de React que te permite memorizar una función, es decir, evitar que se cree una nueva versión de esa función en cada render. 
                                         // Esto es útil en dos casos principales:
                                             // 1. Cuando pasás funciones como props a componentes hijos que dependen de referencialidad (optimización).
                                             // 2. Cuando querés evitar warnings como el que estás viendo, porque React puede "saber" si esa función cambió o no.
 
-import "../css/CalendarioVisitas.css";
 // import esLocale from '@fullcalendar/core/locales/es';        
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';                               
-
 const { Panel } = Collapse;
 
 // const clientIdgoogle = '624383334135-n745f2bncl6ucgsmnls4hlvujmmohk51.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
-
 // Inicializamos EmailJS con tu Public Key (User ID)
 // emailjs.init('G10RHxIwl7yP1iew5');  // Aquí va tu public key
 
 const BudgetForm = ({ work, onClose }) => {
   const [form] = Form.useForm();
-  
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Estados de selección de cliente y técnicos
+  // const [client, setClient] = useState(null);
+  const [technicians, setTechnicians] = useState([]);
+
   // 1. Estado global para budgetData
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [pendingBudgetData, setPendingBudgetData] = useState(null);
-
-  // Opciones seleccionadas por el usuario
+  // 2. Opciones seleccionadas por el usuario
   const [generatePDFOption, setGeneratePDFOption] = useState(false);  // true
   const [sendEmailOption, setSendEmailOption] = useState(false);      // true
   // const [sendWhatsAppOption, setSendWhatsAppOption] = useState(false);
 
   // Row Productos
-  const [products, setProducts] = useState([{ productId: "", quantity: 1, width: 0, length: 0, price: 0, discount: 0, subtotal: 0, format: null, currency: '',  // 👍 Ya bien seteado
+  const [products, setProducts] = useState([{ 
+    productId: "", quantity: 1, width: 0, length: 0, price: 0, discount: 0, subtotal: 0, format: null, currency: '',  // 👍 Ya bien seteado
     habilitado: { quantityC: false, widthC: false, lengthC: false, priceC: false, discountC: false},
    }]);
   //const [totalUSD, setTotalUSD] = useState(0);
   //const [totalUYU, setTotalUYU] = useState(0);
   const [totals, setTotals] = useState({ USD: 0, UYU: 0 });
-  
-  const [availableProducts, setAvailableProducts] = useState([]);
-  const [technicians, setTechnicians] = useState([]); 
+  const [availableProducts, setAvailableProducts] = useState([]); 
 
    // Al principio de tu componente, nuevos estados:
    const [calendarEvents, setCalendarEvents] = useState([]);
    const [selectedEvent, setSelectedEvent] = useState(null);
    const [isModalOpen, setIsModalOpen] = useState(false);
-
-     // Estados necesarios
+   // Estados necesarios
   const [activePanelKey, setActivePanelKey] = useState(1); // 1 = Panel 1, 2 = Panel 2
   const [selectedDateTime, setSelectedDateTime] = useState('');
   const [newQuote, setNewQuote] = useState({
     visitDate: "",
     // podés agregar más campos si los necesitás
   });
-
   const [pdfProcessing, setPdfProcessing] = useState(false);
   const [pdfError, setPdfError] = useState(false);
-
-  // Verifica que work no sea undefined
-  console.log("work en BudgetForm:", work);  
-  const workId = work ? work._id : null;     // Aquí accedes al ID del trabajo
-  const client = work?.cliente ? { id: work.cliente._id, name: work.cliente.nombre } : null;
-  // console.log("ID del trabajo:", workId); console.log("ID del cliente:", clienteId);
+  
+  console.log("work en BudgetForm:", work);     // Verifica que work no sea undefined   
+  const workId = work ? work._id : null;        // Aquí accedes al ID del trabajo. // console.log("ID del trabajo:", workId); console.log("ID del cliente:", clienteId);
+  const client = work?.cliente ? { 
+    id: work.cliente._id, 
+    name: work.cliente.nombre,
+    direccion: work.cliente?.direcciones?.[0] || '',
+    // address: work.cliente.direccion || '',
+    email: work.cliente?.correos || '',
+    phones: work.cliente.telefonos || []
+  } : null;
 
   // Asegúrate de que workId no sea undefined antes de intentar usarlo
   if (!workId) {
@@ -141,20 +140,20 @@ const BudgetForm = ({ work, onClose }) => {
   // 3. Solo al montar y desmontar
   // Si el array de dependencias está vacío [], useEffect solo se ejecutará una vez, después de que el componente se haya montado, 
   // y no se ejecutará en actualizaciones posteriores. Este comportamiento es útil para realizar tareas como obtener datos solo una vez.
+
+  // Efecto para cargar técnicos y productos al montar
   useEffect(() => {
-    console.log("Componente montado");
+    // console.log("Componente montado");
     const fetchData = async () => {
       try{
-        // Técnicos
-        const tecnicosData = await getTechnicians();
+        const tecnicosData = await getTechnicians();      // Técnicos
         // setTechnicians(tecnicosData || []);
-        setTechnicians(tecnicosData.map(user => ({ value: user._id, label: `${user.username}` })));
+        setTechnicians(tecnicosData.map(user => ({ value: user._id, label: `${user.username}` })));  // ó label: user.username
 
         // Productos
         setLoadingProducts(true);  // Empieza la carga
         const productsData = await getProducts();           // Esta es la llamada que hace la API a productApi.js
-        console.log('Datos de productos desde la API:', productsData);      // Verifica si los productos vienen de la API correctamente
-
+        // console.log('Datos de productos desde la API:', productsData);      // Verifica si los productos vienen de la API correctamente
         if (productsData && productsData.length > 0) {
           // Extraemos el _id, name y price, pero puedes incluir más si lo necesitas
           const transformedProducts = productsData.map(product => {
@@ -166,15 +165,17 @@ const BudgetForm = ({ work, onClose }) => {
               label: `${product.name}`,               // `product.name` es el nombre del producto
               price: product.price,                   // Asegúrate de incluir el precio en cada producto
               currency: product.currency || 'USD',    // Suponiendo que los productos tienen una moneda asociada
-              productType: product.productType ? product.productType.title : 'Desconocido',  // Título del tipo de producto
-              format: product.productType ? product.productType.format : 'Desconocido'
+              // productType: product.productType ? product.productType.title : 'Desconocido',  // Título del tipo de producto
+              // format: product.productType ? product.productType.format : 'Desconocido'
+              productType: product.productType?.title || 'Desconocido',
+              format: product.productType?.format || 'Desconocido'
             }
           });
           setAvailableProducts(transformedProducts); 
-          console.log("Productos disponibles:", transformedProducts);
+          // console.log("Productos disponibles:", transformedProducts);
         } else {
             message.error("La respuesta de la API no contiene los productos.");
-            console.error("Error al cargar los productos:");
+            console.error("No se encontraron productos.");
         }
       } catch (error) {
         console.error("Error al cargar los técnicos o los productos:", error);
@@ -184,7 +185,7 @@ const BudgetForm = ({ work, onClose }) => {
           message.error("No autorizado. Por favor, inicia sesión nuevamente.");
           console.error("Respuesta de error:", error.response);
         } else {
-            message.error("No se pudo cargar los productos.");
+            message.error("No se pudo cargar los productos o los técnicos.");
             console.error("Error sin respuesta de la API:", error);
         } 
       } finally {
@@ -192,15 +193,13 @@ const BudgetForm = ({ work, onClose }) => {
       }
     }
     fetchData();    // Call to fetch technicians and products
-
     // TEST: forzar un modal al cargar
-  Modal.confirm({
+/*  Modal.confirm({
     title: "Test Modal",
     content: "¿Funciona esto?",
     okText: "Sí",
     cancelText: "No",
-  });
-
+  }); */
   }, []);
 
   useEffect(() => {
@@ -234,13 +233,73 @@ const BudgetForm = ({ work, onClose }) => {
     console.log("👀 description actualizado:", watchedDescription);
   }, [watchedDescription]);
 */
-  
+  // EFECTO NUEVO: Cuando cambian work o technicians, actualizo el cliente y seteo los valores del formulario
+/*  useEffect(() => {
+    if (work) {
+      // Setear cliente en estado local para poder pasar como prop
+      if (work.cliente) {
+        setClient({ id: work.cliente._id, name: work.cliente.nombre });
+      }
+
+      // Setear técnicos seleccionados en el formulario (ejemplo, si work tiene técnicos asignados)
+      if (work.tecnicos && technicians.length > 0) {
+        // Aquí convierto IDs o datos del work a la estructura que espera el form
+        const selectedTechs = technicians.filter(t => work.tecnicos.includes(t.value));
+        form.setFieldsValue({
+          clientId: work.cliente?._id || null,
+          technicians: selectedTechs.map(t => t.value),
+          // Aquí otros campos que quieras autocompletar
+          visitDate: work.visitDate || null,
+          description: work.description || '',
+          products: work.products || [],  // si aplicara
+        });
+      } else {
+        // Si no hay técnicos o work.tecnicos, seteo cliente y demás igualmente
+        form.setFieldsValue({
+          clientId: work.cliente?._id || null,
+          visitDate: work.visitDate || null,
+          description: work.description || '',
+          products: work.products || [],
+        });
+      }
+    }
+  }, [work, technicians, form]); */
+  // ✅ Cuando se abre el formulario con un trabajo seleccionado
+  useEffect(() => {
+    /*
+    if (work && form && work?.tecnicos?.length > 0) {
+      const techIds = work.tecnicos.map(t => t._id);
+      form.setFieldsValue({
+        cliente: client?.name || '',
+        name: `Presupuesto - ${client.name}`,
+        direccion: client?.direccion || '',
+        email: client?.email || '',
+        technicianIds: techIds
+      });
+    } */
+      if (client) {
+        console.log("Cliente en BudgetForm:", work);
+        const clientAddresses = work?.cliente?.direcciones || [];
+        const clientEmails = work?.cliente?.correos || [];
+        const clientPhones = work?.cliente?.telefonos || [];
+    
+        form.setFieldsValue({
+          clientId: client.id,
+          clientName: client.name,
+          name: `Presupuesto ${client.name}`,
+          technicianIds: work?.tecnicos?.map(t => t._id) || [],
+          address: clientAddresses[0] || '',
+          email: clientEmails[0] || '',
+          phones: clientPhones.join(', ') || ''  // Campo nuevo
+        });
+      }
+  }, [work, client, form]);
 
   // ✅ Manejo de cambios por campo. // Función para manejar los cambios en los valores de cantidad, ancho, largo, descuento
   // ✅ Paso 1: Cada vez que cambiás un campo de un producto, actualizás el estado
   const handleProductDetailChange = (index, field, value) => {    // Cuando cambia un detalle del producto
-    console.log('Entrando en handleProductDetailChange:');
-    const safeValue = field === 'quantity' ? Math.max(1, value || 1) : value;
+    // console.log('Entrando en handleProductDetailChange:');
+    // const safeValue = field === 'quantity' ? Math.max(1, value || 1) : value;
 
     // Crea una copia del estado de productos
  /*   const updatedProducts = [...products];
@@ -256,25 +315,20 @@ const BudgetForm = ({ work, onClose }) => {
 */
     setProducts(prevProducts => {   // prevProducts es el estado anterior (el array de productos actual).
       const updatedProducts = [...prevProducts];
-
       // Actualizar el campo cambiado
       updatedProducts[index] = {
         ...updatedProducts[index],
         [field]: value    // = safeValue
       };
-
-      // Calcular el nuevo subtotal
-      updatedProducts[index].subtotal = calculateSubtotal(updatedProducts[index]);
-
+      updatedProducts[index].subtotal = calculateSubtotal(updatedProducts[index]);    // Calcular el nuevo subtotal
       return updatedProducts;
     });
   };
-
   // ✅ useEffect que calcula subtotales solo cuando cambia la data (previniendo loops infinitos)
   // ✅ Paso 2: useEffect recalcula subtotales automáticamente
   useEffect(() => {   // Se dispara cada vez que products cambia
-    console.log("recalcular el subtotal cada vez que los productos cambien...");  /*
-    const updatedProducts = products.map(product => {
+    console.log("recalcular el subtotal cada vez que los productos cambien...");  
+  /*  const updatedProducts = products.map(product => {
       const area = product.width * product.length;
       const discount = product.discount || 0;
       const subtotal = ((product.price * area * product.quantity) * (1 - discount / 100)).toFixed(2); 
@@ -292,28 +346,25 @@ const BudgetForm = ({ work, onClose }) => {
     const totalUSD = products.filter(p => p.currency === "USD").reduce((acc, p) => acc + p.subtotal, 0);
     const totalUYU = products.filter(p => p.currency === "UYU").reduce((acc, p) => acc + p.subtotal, 0);
     setTotals({ USD: totalUSD, UYU: totalUYU });  
-    console.log("USD", totalUSD);   console.log("UYU", totalUYU);
+    // console.log("USD", totalUSD);   console.log("UYU", totalUYU);
   }, [products]); // ✅ ¿Y cómo se activa eso?  ->  Cada vez que cambiás un valor en el formulario: (handleProductDetailChange)
   
   // funcion que sustituye el useEffect anterior para optimizar para recalcular solo el producto modificado, en lugar de recalcular todo el array de productos.
 /*  const updateProduct = (updatedProduct) => {
-
     console.log("updatedProduct", updatedProduct);
     const subtotal = calculateSubtotal(updatedProduct);
-  
     const newProduct = { 
       ...updatedProduct, 
       subtotal: isNaN(subtotal) ? 0 : parseFloat(subtotal) 
     };     
     console.log("ID", newProduct.productId);  console.log("NewProduct", newProduct); console.log("Product1: ", products);
-  
     setProducts(prevProducts => 
       prevProducts.map(product => 
         product.productId === newProduct.productId ? newProduct : product
       )
     );
   };  */
-  
+
   // Función que maneja los cambios en los productos
   const handleProductChange = (index, field, value) => {
     const foundProduct = availableProducts.find(product => product.value === value);
@@ -412,15 +463,14 @@ const BudgetForm = ({ work, onClose }) => {
     console.log("Cancelando el modal de crear presupuesto..."); 
     form.resetFields();
     setProducts([{ productId: "", quantity: 0, width: 0, length: 0, price: 0, discount: 0, subtotal: 0 }]);
-    //setTotalUSD(0);
-    //setTotalUYU(0);
-
+    //setTotalUSD(0);   //setTotalUYU(0);
     setShowPDFModal(false);
     setPdfError(false); // ✅ También borramos el estado de error si el usuario cancela
     onClose();
   };
 
   const handleSubmit = async (values) => {
+    console.log("📥 Enviar formulario con valores:", values);
     // Recopilamos todos los datos del formulario
         // const { name, address, description, technicianId } = values;
         //const {name} = values;
@@ -573,7 +623,7 @@ const BudgetForm = ({ work, onClose }) => {
       address: values.address,
       description: values.description,
       client: values.clientId,
-      technician: values.technicianId,
+      technician: values.technicianIds,
       clienteName: client?.name,          // Asegúrate de tener estos IDs en tu form
       tecnicoName: (technicians.find(t => t.value === form.getFieldValue('technicianId')))?.label || 'Sin técnico',
       totalUYU: Number(totals.UYU),
@@ -716,11 +766,13 @@ const BudgetForm = ({ work, onClose }) => {
     const handleCancelPDF = () => {
       setShowPDFModal(false);
       setPendingBudgetData(null);
+      // setPdfError(false);
     };  
 
     const handlePreviewPDF = () => {
       // lógica para generar el PDF sin enviarlo
       console.log("Vista previa PDF generada");
+      console.log("📄 Vista previa PDF no implementada todavía");
       // exportToPDF({ preview: true }); // si querés diferenciar
     }; 
 
@@ -1118,7 +1170,7 @@ const BudgetForm = ({ work, onClose }) => {
                 size="large" style={{ width: "290px" }}>
                 {loading ? 'Cargando' : 'Confirmar y Generar Presupuesto'}
               </Button>
-
+{/*
               <Button
                 onClick={handlePreviewPDF}
                 icon={<EyeOutlined />}
@@ -1126,7 +1178,7 @@ const BudgetForm = ({ work, onClose }) => {
                 style={{ width: "160px", backgroundColor: "#1976D2", color: "white" }}
               >
                 Vista Previa PDF
-              </Button>
+              </Button> */}
 {/*
 <Form.Item label="Descripción (test)" name="descriptionTest">
   <Input.TextArea />

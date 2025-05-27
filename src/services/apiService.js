@@ -61,4 +61,29 @@ export const getScheduledVisits = async () => {
   }
 };
 
+// Crear un nuevo evento en Google Calendar
+export const createCalendarEvent = async (eventData) => {
+  try {
+    const response = await axios.post(
+      `${API_URL}/calendar/create-event`,
+      eventData,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(), // agrega el token si está presente
+        },
+      }
+    );
+
+    console.log("✅ Evento creado:", response.data);
+    message.success("Evento creado exitosamente en Google Calendar");
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error al crear el evento:", error);
+    message.error("No se pudo crear el evento en Google Calendar");
+    throw error; // Podés lanzarlo si lo querés manejar desde el componente también
+  }
+};
+
+
 
