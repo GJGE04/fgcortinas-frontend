@@ -39,7 +39,14 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-page">
+    <div className="login-page" style={{
+      minHeight: '100vh',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '20px',
+      backgroundColor: '#f5f5f5'
+    }}>
       {isLoggedIn ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <h2>Bienvenido! Ya estás logueado.</h2>

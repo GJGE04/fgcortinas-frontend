@@ -53,7 +53,7 @@ const LoginPage = () => {
 
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-      <h2>Iniciar sesión</h2>
+      <h2>Iniciar sesión1</h2>
       <LoginForm onFinish={onFinish} /> {/* Usamos el componente de LoginForm */}
       {error && <div style={{ color: 'red' }}>{error}</div>}
     </div>

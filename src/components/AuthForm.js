@@ -58,7 +58,14 @@ const AuthForm = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="auth-form">
+    <div className="auth-form" style={{
+      backgroundColor: 'white',
+      padding: '30px',
+      borderRadius: '10px',
+      boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+      width: '100%',
+      maxWidth: '400px'
+    }}>
       <h2>Iniciar Sesión</h2>
       <form onSubmit={handleSubmit}>
         <div>
@@ -68,6 +75,7 @@ const AuthForm = ({ onLoginSuccess }) => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            style={{ width: '100%', padding: '10px', marginBottom: '15px' }}
           />
         </div>
         <div>
