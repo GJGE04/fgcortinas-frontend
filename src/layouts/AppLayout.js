@@ -50,6 +50,29 @@ const AppLayout = ({ children }) => {
 
   const [isMobile, setIsMobile] = useState(false);
 
+  // estilos en línea para aplicar a los botones del Header (como “Volver”, “Registrarse”, etc.).
+  const buttonStyle = {
+    background: "transparent",
+    color: "white",
+    border: "2px solid white",
+    padding: "5px 15px",
+    fontSize: "14px",
+    borderRadius: "5px",
+    display: "inline-flex",
+    alignItems: "center",
+    transition: "background 0.3s, color 0.3s"
+  };
+
+  const hoverIn = (e) => {
+    e.target.style.background = "#F5F5F5";
+    e.target.style.color = "#D32F2F";
+  };
+
+  const hoverOut = (e) => {
+    e.target.style.background = "transparent";
+    e.target.style.color = "white";
+  };
+
   // Detectar dispositivo móvil con media query global
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
@@ -378,9 +401,10 @@ const AppLayout = ({ children }) => {
   }}
 >
 {/* Esto fuerza a los botones a mantenerse en una sola línea (horizontal) en móviles, y habilita scroll lateral si se desborda el contenido. */}
+            {/* Siempre visible */}
             <Button
               onClick={goBack}
-              style={{
+            /*  style={{
                 background: "transparent",
                 color: "white",
                 border: "2px solid white",
@@ -398,13 +422,19 @@ const AppLayout = ({ children }) => {
               onMouseLeave={(e) => {
                 e.target.style.background = "transparent";
                 e.target.style.color = "white";
-              }}
+              }} */
+                style={buttonStyle}  
+                onMouseEnter={hoverIn}
+                onMouseLeave={hoverOut}
             >
               Volver
             </Button>
+
+            {/* Solo si NO está logueado */}
+            {!userRole && (
             <Button
               onClick={goHomePage}
-              style={{
+            /*  style={{
                 background: "transparent",
                 color: "white",
                 border: "2px solid white",
@@ -422,61 +452,76 @@ const AppLayout = ({ children }) => {
               onMouseLeave={(e) => {
                 e.target.style.background = "transparent";
                 e.target.style.color = "white";
-              }}
+              }} */
+                style={buttonStyle}  
+                onMouseEnter={hoverIn}
+                onMouseLeave={hoverOut}
             >
               Registrarse
             </Button>
+            )}
 
-            <Button
-              onClick={goChangePassword}
-              style={{
-                background: "transparent",
-                color: "white",
-                border: "2px solid white",
-                padding: "5px 15px",
-                fontSize: "14px",
-                borderRadius: "5px",
-                display: "inline-flex",
-                alignItems: "center",
-                transition: "background 0.3s, color 0.3s"
-              }}
-              disabled={!localStorage.getItem("token")} // Deshabilitar si no hay token
-              onMouseEnter={(e) => {
-                e.target.style.background = "#F5F5F5";
-                e.target.style.color = "#D32F2F";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "transparent";
-                e.target.style.color = "white";
-              }}
-            >
-              Cambiar contraseña
-            </Button>
+            {/* Solo si está logueado */}
+            {userRole && (
+              <>
+                <Button
+                  onClick={goChangePassword}
+                /*  style={{
+                    background: "transparent",
+                    color: "white",
+                    border: "2px solid white",
+                    padding: "5px 15px",
+                    fontSize: "14px",
+                    borderRadius: "5px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transition: "background 0.3s, color 0.3s"
+                  }} */
+                  disabled={!localStorage.getItem("token")} // Deshabilitar si no hay token
+                /*  onMouseEnter={(e) => {
+                    e.target.style.background = "#F5F5F5";
+                    e.target.style.color = "#D32F2F";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "transparent";
+                    e.target.style.color = "white";
+                  }} */
+                  style={buttonStyle}  
+                  onMouseEnter={hoverIn}
+                  onMouseLeave={hoverOut}
+                >
+                  Cambiar contraseña
+                </Button>
 
-            <Button
-              onClick={handleLogout}    // confirmLogout
-              style={{
-                background: "transparent",
-                color: "white",
-                border: "2px solid white",
-                padding: "5px 15px",
-                fontSize: "14px",
-                borderRadius: "5px",
-                display: "inline-flex",
-                alignItems: "center",
-                transition: "background 0.3s, color 0.3s"
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#F5F5F5";
-                e.target.style.color = "#D32F2F";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "transparent";
-                e.target.style.color = "white";
-              }}
-            >
-              Cerrar sesión
-            </Button>
+                <Button
+                  onClick={handleLogout}    // confirmLogout
+                /*  style={{
+                    background: "transparent",
+                    color: "white",
+                    border: "2px solid white",
+                    padding: "5px 15px",
+                    fontSize: "14px",
+                    borderRadius: "5px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transition: "background 0.3s, color 0.3s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "#F5F5F5";
+                    e.target.style.color = "#D32F2F";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "transparent";
+                    e.target.style.color = "white";
+                  }} */  // variante 1
+                  style={buttonStyle}  
+                  onMouseEnter={hoverIn}
+                  onMouseLeave={hoverOut}
+                >
+                  Cerrar sesión
+                </Button>
+              </>
+            )}
           </div>
         </Header>
 
