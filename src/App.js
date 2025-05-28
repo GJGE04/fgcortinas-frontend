@@ -45,7 +45,6 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 
 // import CalendarioVisitas from "./components/CalendarioVisitas"; // o tu ruta real
 
-
 function App() {
   return (
     <Router>  {/* Envuelve todo en el Router */}

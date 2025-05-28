@@ -16,7 +16,7 @@ import {
     TeamOutlined, 
     CalendarOutlined, 
     FileDoneOutlined, 
-    HistoryOutlined, 
+    // HistoryOutlined, 
     SettingOutlined,
     DollarOutlined,
     // FileTextOutlined
@@ -41,7 +41,7 @@ const AppLayout = ({ children }) => {
 
   // const showFooter = ["/dashboard", "/otra-pagina"].includes(location.pathname);
   // ✅ Lista de rutas donde el footer siempre debe mostrarse, incluso si el usuario está logueado
-  const footerVisibleRoutes = ["/dashboard", "/login", "/a", "/nosotros"];
+  const footerVisibleRoutes = ["/dashboard", "/a", "/nosotros"];  // "/login", 
 
   // ✅ Se evalúa si la ruta actual está en la lista
   // const showFooter = footerVisibleRoutes.includes(location.pathname);
@@ -473,7 +473,9 @@ const AppLayout = ({ children }) => {
         {/*<AppFooter /> */}
 
         {/* Footer solo visible si NO hay usuario logueado */}
-        {(!userRole || showFooter) && <AppFooter />}
+        {/*{(!userRole || showFooter) && <AppFooter />}*/}
+        {showFooter && <AppFooter />}
+
       </Layout>
     </Layout>
   );
