@@ -1,0 +1,195 @@
+/* ProductTypesPage.css */
+
+/* Alternancia de filas */
+.table-row-light {
+    background-color: #fff5f5;  /* rojo muy claro */ /* #fafafa */
+  }
+  
+  .table-row-dark {
+    background-color: #ffecec;  /* ligeramente más oscuro */ /* #ffffff*/
+  }
+  
+  /* Filas desactivadas */
+  .inactive-row {
+    color: rgba(0, 0, 0, 0.3);
+    background-color: #fce8e8;      /* grisáceo con tono rojo */  /* f5f5f5 */ 
+  }
+  
+  /* Hover sobre filas */
+  .ant-table-tbody > tr:hover > td {
+    background-color: #ffd6d6 !important;       /* e6f7ff */ 
+  }
+  
+  /* Encabezado de la tabla */
+  .ant-table-thead > tr > th {
+    background-color: #d32f2f !important;       /* rojo fuerte */       /* 1890ff */ 
+    color: white !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 14px !important;
+  }
+  
+  /* Celdas */
+  .ant-table-cell {
+    padding: 12px 16px !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+  }
+  
+  /* Bordes redondeados y sombra para la tabla */
+  .ant-table {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(211, 47, 47, 0.15);      /* sombra roja suave */     /* rgba(0,0,0,0.1) */
+  }
+
+  /* Botón primario rojo (opcional si quieres sobreescribir el estilo global de antd) */
+.ant-btn-primary {
+    background-color: #d32f2f !important;
+    border-color: #d32f2f !important;
+  }
+  
+  .ant-btn-primary:hover {
+    background-color: #b71c1c !important;
+    border-color: #b71c1c !important;
+  }
+
+  /* Color del ícono interno del switch cuando está activado */
+  /*  .ant-switch-checked .ant-switch-inner {
+        color: white !important;
+    } */
+
+  /* Si querés aplicar específicamente cuando se usa tu clase personalizada: */
+  /* Switch personalizado rojo */ /*
+.custom-switch.ant-switch-checked {
+    background-color: #d32f2f !important;
+    border-color: #d32f2f !important;
+  } */
+ /* ⚠️ Evitá usar .custom-switch .ant-switch-checked porque .ant-switch-checked no es un hijo, sino una clase que reemplaza a .ant-switch. 
+ Es decir, el Switch se vuelve <button class="ant-switch ant-switch-checked">. */
+
+  /* Aplica cuando el switch está activado */ /* */  /* Forzar rojo al switch activado (es el estado visual del interruptor en posición "on") */
+  /* Estilo del fondo cuando está activo */
+.ant-switch-checked {
+    background-color: #d32f2f !important;
+    border-color: #d32f2f !important;
+  }  
+
+  /* al cambiar el estado del switch (activado/desactivado), el color de fondo va a cambiar suavemente, en lugar de de golpe. */
+  /* Animación del fondo */
+  .ant-switch {
+    transition: background-color 0.3s ease !important;
+  }  
+
+  /* Animación suave para el dot del switch */ 
+  /* Animación del dot */
+.ant-switch-handle {
+    transition: left 0.3s ease !important;
+  }  
+
+  /* Encabezado del modal */
+.ant-modal-title {
+    color: #d32f2f !important;
+    font-weight: bold;
+  }
+  
+  /* Botones del modal */
+  .ant-modal-footer .ant-btn-primary {
+    background-color: #d32f2f !important;
+    border-color: #d32f2f !important;
+  }
+  
+  .ant-modal-footer .ant-btn-primary:hover {
+    background-color: #b71c1c !important;
+    border-color: #b71c1c !important;
+  }
+
+  /* Fondo rojo del modal */
+.ant-modal-content {
+    background-color: #fff5f5 !important; /* Rojo fuerte d32f2f ; b71c1c */  /* fff5f5 ; fdecea */
+    border-radius: 10px !important; /* Bordes redondeados */
+  }
+  
+  /* Encabezado del modal */  /* Aplica un rojo solo al fondo del título */
+ /* .ant-modal-header {
+    background-color: #f44336 !important;
+    padding: 16px 24px;
+    border-radius: 10px 10px 0 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  } */
+/*
+  .ant-modal-header {
+    background-color: transparent !important;
+    padding: 0;
+    border-bottom: none;
+  } */
+  
+  /* Fondo rojo solo detrás del título */
+  .custom-modal-title {
+    background-color: #f44336;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 10px 10px 0 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  /* Título del modal */  /* El título dentro del header */
+/*  .ant-modal-title {
+    color: white !important;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+  } */
+
+  /* El botón de cerrar (la X) */  /* Botón de cerrar (X) blanco y visible */
+.ant-modal-close {
+    color: white !important;
+    font-size: 16px;
+    right: 16px;
+    top: 16px;
+    z-index: 10;
+  }
+  
+  /* Fondo del contenido del modal */
+  .ant-modal-content {
+    background-color: #fff5f5 !important; /* Rojo pastel claro */
+    border-radius: 10px;
+  }
+
+  .custom-modal-title-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: #f44336; /* rojo */
+  padding: 16px 24px;
+  border-radius: 8px 8px 0 0;
+  width: 100%;
+}
+
+.custom-modal-title-text {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.scrollable-table-container {
+    max-height: 600px; /* ajustá la altura según tu diseño */
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(211, 47, 47, 0.1);
+  }    
+
+  .table-scroll-wrapper {
+    height: calc(100vh - 200px); /* Ajustá según el alto de tu encabezado + filtros */
+    overflow: auto;
+    padding-right: 10px;
+  }
+  
+  
+  
+  

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Table, Button, Modal, Form, Input, Select, Switch, message } from "antd";
+import { Table, Button, Modal, Form, Input, Select, Switch, message, AutoComplete, Tooltip } from "antd";
 import axios from "axios";
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import "../css/table.css";
 
 const { Option } = Select;
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -22,7 +24,7 @@ const ProductTypesPage = () => {
   const [form] = Form.useForm();
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorModalMessage, setErrorModalMessage] = useState('');
-
+  const [isDuplicateTitle, setIsDuplicateTitle] = useState(false);    // estado local para guardar el error de título duplicado
 
   // Estado para almacenar los filtros
   const [filters, setFilters] = useState({
@@ -63,7 +65,6 @@ const ProductTypesPage = () => {
     }
     return filtered;
   };  
-  
 
   // Función para abrir el modal de edición
   const handleOpenModal = (record = null) => {
@@ -268,6 +269,19 @@ const ProductTypesPage = () => {
     setFilteredData(sortedData);
   };
 
+  // Opciones para AutoComplete (lista de títulos únicos)
+  const autocompleteOptions = data.map(item => ({
+    value: item.title,
+  }));
+
+  //  función para verificar duplicados
+  const checkDuplicateTitle = (value) => {
+    const exists = data.some(item =>
+      item.title.trim().toLowerCase() === value.trim().toLowerCase()
+    );
+    setIsDuplicateTitle(exists);
+  };  
+
   // Definición de las columnas para la tabla
   const columns = [
     { title: "Título", dataIndex: "title", key: "title",
@@ -300,17 +314,37 @@ const ProductTypesPage = () => {
       dataIndex: "active",
       key: "active",
       render: (active, record) => (
-        <Switch checked={active} onChange={() => toggleActiveStatus(record._id, active)} /> // Pasa el ID y el estado actual
+        <Switch className="custom-switch" checked={active} onChange={() => toggleActiveStatus(record._id, active)} /> // Pasa el ID y el estado actual
       ),
     },
     {
       title: "Acciones",
       key: "actions",
       render: (_, record) => (
+        /*
         <>
           <Button onClick={() => handleOpenModal(record)} style={{ marginRight: 10 }}>Editar</Button>
           <Button onClick={() => handleDelete(record._id)} danger>Eliminar</Button>
         </>
+        */
+        <>
+        <Tooltip title="Editar">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenModal(record)}
+            style={{ marginRight: 8 }}
+          />
+        </Tooltip>
+        <Tooltip title="Eliminar">
+          <Button
+            type="text"
+            icon={<DeleteOutlined />}
+            danger
+            onClick={() => handleDelete(record._id)}
+          />
+        </Tooltip>
+      </>
       ),
     },
   ];
@@ -318,7 +352,8 @@ const ProductTypesPage = () => {
   return (
     <div style={{ padding: 20 }}>
       <h2>Tipos de Productos</h2>
-      <div style={{ marginBottom: 20 }}></div>
+      {/* <div style={{ marginBottom: 20 }}></div> */}
+      <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
       <Input
         placeholder="Buscar por Título"
         value={filters.title}
@@ -327,17 +362,39 @@ const ProductTypesPage = () => {
       />
 
       <Button type="primary" onClick={() => handleOpenModal()}>Agregar Tipo de Producto</Button>
+      </div>
+      {/* Scroll limitado solo a la tabla */}
+      {/* <div className="scrollable-table-container"> */}
+      {/* ✅ Tabla envuelta para scroll solo del cuerpo */}
+      {/*<div className="table-scroll-wrapper"> */}
       <Table
         columns={columns}
         dataSource={filteredData} // Usa los datos filtrados
         rowKey="_id"
-        pagination={{ pageSize: 20 }}
+        // pagination={{ pageSize: 20 }}
+        pagination={{ pageSize: 20, showSizeChanger: true }}
         onChange={handleTableChange} // Agregado para manejar la ordenación
         style={{ marginTop: 20 }}
+        size="middle"
+        rowClassName={(record, index) => {
+          if (!record.active) return 'inactive-row';
+          return index % 2 === 0 ? 'table-row-light' : 'table-row-dark';
+        }}
+        scroll={{ y: 520 }}  // <--- 👈 Aquí el header queda fijo y el cuerpo hace scroll
+        // scroll={{ y: '100%' }}  // Toma el 100% del contenedor padre
       />
-
+      {/* </div> */}
+      {/* </div> */}
       <Modal
-        title={editingItem ? "Editar Tipo de Producto" : "Agregar Tipo de Producto"}
+        /* title={editingItem ? "Editar Tipo de Producto" : "Agregar Tipo de Producto"} */
+         title={<div className="custom-modal-title">{editingItem ? "Editar Tipo de Producto" : "Agregar Tipo de Producto"}</div>} /* */
+      /*  title={
+          <div className="custom-modal-title-wrapper">
+            <div className="custom-modal-title-text">
+              {editingItem ? "Editar Tipo de Producto" : "Agregar Tipo de Producto"}
+            </div>
+          </div>
+        } */ 
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         onOk={handleSubmit}
@@ -346,9 +403,39 @@ const ProductTypesPage = () => {
           <Form.Item
             name="title"
             label="Título"
-            rules={[{ required: true, message: "El título es obligatorio" }]}
+            rules={[
+              { required: true, message: "El título es obligatorio" },
+              () => ({
+                validator(_, value) {
+                  if (!value || !isDuplicateTitle) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("Este título ya existe."));
+                }
+              })
+            ]}
           >
-            <Input />
+          {/*}  <Input
+              onChange={(e) => {
+                checkDuplicateTitle(e.target.value);
+              }}
+             /> */}
+             {/* usar el componente AutoComplete de Ant Design en lugar de un Input simple */}
+             <AutoComplete
+              options={autocompleteOptions}
+              onChange={(value) => {
+                form.setFieldsValue({ title: value }); // sincroniza el valor en el formulario
+                checkDuplicateTitle(value);
+              }}
+              onSearch={(value) => {
+                checkDuplicateTitle(value);
+              }}
+              placeholder="Escribe o selecciona un título"
+              filterOption={(inputValue, option) =>
+                option.value.toLowerCase().startsWith(inputValue.toLowerCase())
+              }
+              allowClear
+            />
           </Form.Item>
           <Form.Item
             name="format"
@@ -362,7 +449,7 @@ const ProductTypesPage = () => {
             </Select>
           </Form.Item>
           <Form.Item name="active" label="Activo" valuePropName="checked">
-            <Switch />
+            <Switch className="custom-switch" />
           </Form.Item>
         </Form>
       </Modal>
