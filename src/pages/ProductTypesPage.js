@@ -32,15 +32,19 @@ const ProductTypesPage = () => {
     format: "",
   });
 
-  const [tableHeight, setTableHeight] = useState(window.innerHeight - 580);
+  const [tableHeight, setTableHeight] = useState(window.innerHeight - 580);   // valor inicial
 
   useEffect(() => {
     const handleResize = () => {
-      setTableHeight(window.innerHeight - 580);
+      // Ajusta el espacio libre según el tamaño de la pantalla
+      const heightOffset = window.innerWidth < 768 ? 580 : 440;
+      const availableHeight = window.innerHeight - heightOffset;
+      setTableHeight(Math.max(300, availableHeight)); // evita que sea muy chica
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    handleResize(); // al montar
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Cargar datos de la API al montar el componente
@@ -393,8 +397,12 @@ const ProductTypesPage = () => {
         }}
         // scroll={{ y: 520 }}  // <--- 👈 Aquí el header queda fijo y el cuerpo hace scroll
         // scroll={{ y: '100%' }}  // Toma el 100% del contenedor padre
-        sticky
-        scroll={{ y: tableHeight }}
+        sticky    // esto fija el encabezado
+        // scroll={{ y: tableHeight }}
+        scroll={{
+          y: tableHeight,
+          x: 'max-content', // 👉 esto habilita scroll horizontal si es necesario
+        }}
       />
       {/* </div> */}
       {/* </div> */}
