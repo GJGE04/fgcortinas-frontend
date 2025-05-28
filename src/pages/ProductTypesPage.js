@@ -316,7 +316,7 @@ const ProductTypesPage = () => {
       } : {},
     },
 
-    { title: "Formato", dataIndex: "format", key: "format", sorter: true, 
+    { title: "Formato", dataIndex: "format", key: "format", sorter: true, width: 150, ellipsis: true,
       filters: formats.map(format => ({
         text: format,
         value: format,
@@ -401,7 +401,7 @@ const ProductTypesPage = () => {
         // scroll={{ y: tableHeight }}
         scroll={{
           y: tableHeight,
-          x: 'max-content', // 👉 esto habilita scroll horizontal si es necesario
+          x: 800, // 👉 esto habilita scroll horizontal si es necesario
         }}
       />
       {/* </div> */}
