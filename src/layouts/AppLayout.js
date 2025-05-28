@@ -7,6 +7,7 @@ import { Menu, Layout, Button, Avatar, Dropdown, Modal, Spin } from "antd";
 // import Footer from "../components/Footer"; // Importa el Footer (v1)
 import "../css/layout.css";
 import AppFooter from "../components/Footer"; // Importa el Footer mejorado
+import MobileFooter from '../components/MobileFooter';
 import { 
     HomeOutlined, 
     AppstoreOutlined, 
@@ -474,7 +475,14 @@ const AppLayout = ({ children }) => {
 
         {/* Footer solo visible si NO hay usuario logueado */}
         {/*{(!userRole || showFooter) && <AppFooter />}*/}
-        {showFooter && <AppFooter />}
+        {/*{showFooter && <AppFooter />}*/}
+
+        {/* Mostrar Footer completo en escritorio */}
+        {(!userRole || showFooter) && !isMobile && <AppFooter />}
+
+        {/* Mostrar Footer simplificado en móviles */}
+        {(!userRole || showFooter) && isMobile && <MobileFooter />}
+
 
       </Layout>
     </Layout>
