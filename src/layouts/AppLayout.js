@@ -50,6 +50,17 @@ const AppLayout = ({ children }) => {
 
   const [isMobile, setIsMobile] = useState(false);
 
+  // Detectar dispositivo móvil con media query global
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mediaQuery.matches);
+
+    const handler = (e) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
 /*
   // Verificar el rol al cargar el componente
   useEffect(() => {
