@@ -32,6 +32,17 @@ const ProductTypesPage = () => {
     format: "",
   });
 
+  const [tableHeight, setTableHeight] = useState(window.innerHeight - 580);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setTableHeight(window.innerHeight - 580);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Cargar datos de la API al montar el componente
   useEffect(() => {
     // axios.get("/api/product-types")
@@ -380,8 +391,10 @@ const ProductTypesPage = () => {
           if (!record.active) return 'inactive-row';
           return index % 2 === 0 ? 'table-row-light' : 'table-row-dark';
         }}
-        scroll={{ y: 520 }}  // <--- 👈 Aquí el header queda fijo y el cuerpo hace scroll
+        // scroll={{ y: 520 }}  // <--- 👈 Aquí el header queda fijo y el cuerpo hace scroll
         // scroll={{ y: '100%' }}  // Toma el 100% del contenedor padre
+        sticky
+        scroll={{ y: tableHeight }}
       />
       {/* </div> */}
       {/* </div> */}
