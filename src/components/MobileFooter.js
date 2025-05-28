@@ -36,8 +36,8 @@ const MobileFooter = () => {
           <p>Instalación, venta y reparación de cortinas a medida</p>
   
           {/* Teléfonos */}
-          <p style={{ marginBottom: 4 }}>📞 <a href="tel:+59891433855" style={{ color: "white" }}>091 433 855</a></p>
-          <p style={{ marginBottom: 10 }}>📞 <a href="tel:+598098114921" style={{ color: "white" }}>098 114 921</a></p>
+        {/*}  <p style={{ marginBottom: 4 }}>📞 <a href="tel:+59891433855" style={{ color: "white" }}>091 433 855</a></p>
+          <p style={{ marginBottom: 10 }}>📞 <a href="tel:+598098114921" style={{ color: "white" }}>098 114 921</a></p> */}
   
           {/* WhatsApp */}
           <p style={{ marginBottom: 4 }}>
