@@ -363,7 +363,21 @@ const AppLayout = ({ children }) => {
 
           {/* Contenedor de los botones alineados a la derecha */}
           {/* Botón de Cerrar sesión y enlace de retroceso */}
-          <div className="header-buttons" style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}>
+          {/* flex-wrap: wrap, lo cual permite que los botones se vayan a la siguiente línea cuando no hay espacio suficiente. */}
+          {/* <div className="header-buttons" style={{ display: "flex", gap: "15px", alignItems: "center", flexWrap: "wrap" }}> */}
+          <div
+  className="header-buttons"
+  style={{
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    overflowX: isMobile ? "auto" : "visible",
+    flexWrap: isMobile ? "nowrap" : "wrap",
+    maxWidth: isMobile ? "100vw" : "none",
+    paddingBottom: isMobile ? "5px" : 0,
+  }}
+>
+{/* Esto fuerza a los botones a mantenerse en una sola línea (horizontal) en móviles, y habilita scroll lateral si se desborda el contenido. */}
             <Button
               onClick={goBack}
               style={{
